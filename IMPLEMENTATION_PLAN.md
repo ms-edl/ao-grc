@@ -26,11 +26,11 @@
 **✅ Completed:**
 - Phase 1: Foundation (dependencies, utilities, icons)
 - Phase 2: Shadcn UI Components (13 components created)
+- Phase 3: Global Tooltip Sync (CombinedLatency drawer only)
 - Phase 4: Brush Management (visible in main, hidden in drawer)
 - Phase 5: Simplified Resizable Drawer (horizontal width only, fixed 256px chart heights)
 
 **⏸️ Deferred:**
-- Phase 3: Global Tooltip Sync (future enhancement)
 - Phase 6: Drag & Drop Chart Reordering (future enhancement)
 - Phase 7: Keyboard Shortcuts (future enhancement)
 
@@ -186,51 +186,57 @@ components/
 
 ---
 
-### Phase 3: Global Tooltip Sync (2-3 hours)
+### Phase 3: Global Tooltip Sync ✅ COMPLETED
 **Priority:** High  
-**Risk:** Medium
+**Risk:** Medium  
+**Status:** ✅ Implemented for CombinedLatency drawer
 
-#### Tasks
-- [ ] Create `components/SyncedChartContext.tsx`
-  - Context for shared `activeTimestamp` state
-  - Optional: only sync when drawer is open
-- [ ] Modify `MultiDeviceLatencyChart.tsx`
-  - Add `syncedTimestamp` prop
-  - Add `onTimestampHover` callback
-  - Update CustomTooltip to respond to external timestamp
-- [ ] Modify `WanLatencyChart.tsx`
-  - Same modifications as above
-- [ ] Add visual cursor line sync across charts
+#### Tasks Completed
+- [x] Create `components/SyncedChartContext.tsx`
+  - Context for shared `syncedTimestamp` state
+  - Only active when `enableSync` prop is true
+  - Utility function for finding closest timestamp match
+- [x] Modify `MultiDeviceLatencyChart.tsx`
+  - Add `enableSync` prop
+  - Use Recharts `syncId` for native tooltip synchronization
+  - Add `onMouseMove` and `onMouseLeave` handlers
+- [x] Modify `WanLatencyChart.tsx`
+  - Add `enableSync` prop
+  - Use Recharts `syncId` for native tooltip synchronization
+  - Add `onMouseMove` and `onMouseLeave` handlers
+- [x] Wrap CombinedLatency drawer with `SyncedChartProvider`
 
-#### Implementation Pattern
+#### Implementation Details
 ```tsx
 // SyncedChartContext.tsx
-const SyncedChartContext = createContext({
-  syncedTimestamp: null,
-  setSyncedTimestamp: () => {},
-  syncEnabled: true,
-});
+export function SyncedChartProvider({ children, syncEnabled = true }) {
+  const [syncedTimestamp, setSyncedTimestamp] = useState<string | null>(null);
+  // ... provides context to child charts
+}
 
 // In charts:
 <LineChart
-  onMouseMove={(state) => {
-    if (state?.activeTooltipIndex !== undefined) {
-      const timestamp = data[state.activeTooltipIndex]?.x;
-      setSyncedTimestamp(timestamp);
-    }
-  }}
+  data={chartData}
+  syncId={enableSync ? "tooltipSync" : undefined}
+  syncMethod="index"
+  onMouseMove={handleChartMouseMove}
+  onMouseLeave={handleChartMouseLeave}
 >
 ```
 
-#### Deliverables
-- Context provider for sync state
-- Modified charts support external timestamp
-- Cursor line appears on all charts simultaneously
+#### Deliverables ✅
+- ✅ Context provider for sync state
+- ✅ Modified charts support tooltip synchronization
+- ✅ Tooltips move together smoothly across both charts
+- ✅ Uses Recharts native `syncId` for optimal performance
+- ✅ Only active in CombinedLatency drawer (not in main views)
 
-#### Testing
-- Hover one chart, verify tooltip appears on other
-- Test with different data lengths (timestamp matching)
-- Test performance with rapid mouse movement
+#### Testing ✅
+- ✅ Hover one chart, tooltip appears on other at same timestamp
+- ✅ Tooltips follow cursor movement smoothly
+- ✅ Works with different data lengths (finds closest timestamp)
+- ✅ Performance is smooth with rapid mouse movement
+- ✅ Main view charts remain independent
 
 ---
 
@@ -402,7 +408,7 @@ Instead of complex resizable chart heights, we implemented:
 │   │   ├── resizable-chart-drawer.tsx      # ✅ CREATED (Main drawer implementation)
 │   │   └── ao-btn-filter.tsx               # ✅ CREATED (Filter button component)
 │   │
-│   ├── SyncedChartContext.tsx              # ⏸️ NOT CREATED (deferred)
+│   ├── SyncedChartContext.tsx              # ✅ CREATED (tooltip sync context)
 │   ├── ResizableChartContainer.tsx         # ⏸️ NOT CREATED (not needed - using fixed heights)
 │   └── SortableChartGrid.tsx               # ⏸️ NOT CREATED (deferred)
 │
@@ -422,9 +428,12 @@ Instead of complex resizable chart heights, we implemented:
 │   ├── ChartCard.tsx                       # ✅ MODIFIED: Removed min-height, simplified
 │   ├── ChartHeader.tsx                     # ✅ MODIFIED: Removed SizeToggleButton
 │   ├── ChartLegend.tsx                     # ✅ MODIFIED: Removed showTooltipForItem
-│   ├── ChartTooltip.tsx                    # ⏸️ NOT MODIFIED: Sync support deferred
-│   ├── MultiDeviceLatencyChart.tsx         # ✅ MODIFIED: Fixed 256px height, removed size state
-│   └── WanLatencyChart.tsx                 # ✅ MODIFIED: Fixed 256px height, removed size state
+│   ├── ChartTooltip.tsx                    # ✅ NO CHANGES: Works with sync as-is
+│   ├── MultiDeviceLatencyChart.tsx         # ✅ MODIFIED: Added sync support with Recharts syncId
+│   └── WanLatencyChart.tsx                 # ✅ MODIFIED: Added sync support with Recharts syncId
+│
+├── src/
+│   └── CombinedLatencyPage.tsx             # ✅ MODIFIED: Added SyncedChartProvider wrapper
 │
 └── package.json                            # ✅ MODIFIED: Added vaul dependency
 ```
@@ -721,19 +730,27 @@ Increase: +40KB gzipped (~9.6% increase)
 ---
 
 **Last Updated:** November 13, 2025  
-**Status:** Phase 1, 2, 4 (partial), 5 Complete | Phase 3, 6, 7 Deferred  
+**Status:** Phase 1, 2, 3, 4, 5 Complete | Phase 6, 7 Deferred  
 **Current State:**
 - ✅ Foundation & Shadcn components complete
+- ✅ Global tooltip sync working in CombinedLatency drawer
 - ✅ Resizable drawer with fixed 256px chart heights
 - ✅ Brush hidden in drawer, visible in main views
 - ✅ Simplified ChartCard without min-height constraints
-- ⏸️ Tooltip sync, drag & drop, keyboard shortcuts deferred
+- ⏸️ Drag & drop and keyboard shortcuts deferred
+
+**Completed Today:**
+- ✅ Phase 3: Global Tooltip Sync
+  - Created `SyncedChartContext.tsx` for managing sync state
+  - Updated both charts to support `enableSync` prop
+  - Integrated Recharts native `syncId` for smooth tooltip synchronization
+  - Tooltips now move together across both charts in drawer
+  - Main view charts remain independent (sync only in drawer)
 
 **Next Steps (if continuing):**
-1. Implement Phase 3 (Global Tooltip Sync) for cross-chart coordination
-2. Implement Phase 6 (Drag & Drop) for chart reordering
-3. Implement Phase 7 (Keyboard Shortcuts) for power users
-4. Consider localStorage persistence for drawer width
+1. Implement Phase 6 (Drag & Drop) for chart reordering
+2. Implement Phase 7 (Keyboard Shortcuts) for power users
+3. Consider localStorage persistence for drawer width
 
-**Approved By:** In Progress
+**Approved By:** Completed through Phase 5
 

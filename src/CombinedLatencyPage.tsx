@@ -2,6 +2,7 @@ import { useState } from 'react';
 import MultiDeviceLatencyChart from '../components/MultiDeviceLatencyChart';
 import WanLatencyChart from '../components/WanLatencyChart';
 import { ResizableChartDrawer } from '../components/ui/resizable-chart-drawer';
+import { SyncedChartProvider } from '../components/SyncedChartContext';
 
 /**
  * CombinedLatencyPage
@@ -42,17 +43,19 @@ export default function CombinedLatencyPage() {
         minSize={40}
         maxSize={90}
       >
-        <div className="space-y-8 p-6">
-          {/* Client Latency Chart in Drawer */}
-          <div>
-            <MultiDeviceLatencyChart hideDrawer={true} variant="drawer" />
-          </div>
+        <SyncedChartProvider syncEnabled={true}>
+          <div className="space-y-8 p-6">
+            {/* Client Latency Chart in Drawer */}
+            <div>
+              <MultiDeviceLatencyChart hideDrawer={true} variant="drawer" enableSync={true} />
+            </div>
 
-          {/* WAN Latency Chart in Drawer */}
-          <div>
-            <WanLatencyChart hideDrawer={true} variant="drawer" />
+            {/* WAN Latency Chart in Drawer */}
+            <div>
+              <WanLatencyChart hideDrawer={true} variant="drawer" enableSync={true} />
+            </div>
           </div>
-        </div>
+        </SyncedChartProvider>
       </ResizableChartDrawer>
     </>
   );

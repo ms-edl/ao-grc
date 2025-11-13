@@ -22,6 +22,7 @@ import { ChartReferenceLabel } from "./ChartReferenceLabel";
 import { calculateYAxisDomainFromDevices } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
+import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 
 const toDate = (v: any): Date | null => {
   if (v instanceof Date) return v;
@@ -113,12 +114,17 @@ interface MultiDeviceLatencyChartProps {
    * - 'drawer': Full width, hides maximize button and brush
    */
   variant?: 'default' | 'drawer';
+  /**
+   * Enable tooltip synchronization with other charts via SyncedChartContext
+   */
+  enableSync?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
   hideDrawer = false, 
   onMaximize,
-  variant = 'default' 
+  variant = 'default',
+  enableSync = false
 }: MultiDeviceLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -164,6 +170,9 @@ export default function MultiDeviceLatencyChart({
   
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
+
+  // === Tooltip sync state ===
+  const syncContext = enableSync ? useSyncedChart() : undefined;
 
   // Close filter on outside click or ESC
   useEffect(() => {
@@ -943,6 +952,30 @@ export default function MultiDeviceLatencyChart({
                     );
                   };
 
+  // === Sync handlers ===
+  const handleChartMouseMove = useCallback((state: any) => {
+    if (!enableSync || !syncContext) return;
+    
+    // Extract active tooltip index from recharts state
+    if (state && state.activeTooltipIndex !== undefined && chartData[state.activeTooltipIndex]) {
+      const timestamp = chartData[state.activeTooltipIndex].x;
+      syncContext.setSyncedTimestamp(timestamp);
+    }
+  }, [enableSync, syncContext, chartData]);
+
+  const handleChartMouseLeave = useCallback(() => {
+    if (!enableSync || !syncContext) return;
+    syncContext.setSyncedTimestamp(null);
+  }, [enableSync, syncContext]);
+
+  // Calculate active index from synced timestamp
+  const syncedActiveIndex = useMemo(() => {
+    if (!enableSync || !syncContext || !syncContext.syncedTimestamp) {
+      return null;
+    }
+    return findClosestTimestampIndex(chartData, syncContext.syncedTimestamp);
+  }, [enableSync, syncContext, syncContext?.syncedTimestamp, chartData]);
+
   if (loading) {
     return (
       <div className="w-full p-5 bg-white rounded-md border border-gray-200">Loading latency dataset…</div>
@@ -1309,7 +1342,14 @@ export default function MultiDeviceLatencyChart({
         <div style={{ height: 256, overflow: "visible", position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
-            <LineChart data={chartData} margin={{ top: 8, right: 32, left: 0, bottom: 8 }}>
+            <LineChart 
+              data={chartData} 
+              margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
+              onMouseMove={enableSync ? handleChartMouseMove : undefined}
+              onMouseLeave={enableSync ? handleChartMouseLeave : undefined}
+              syncId={enableSync ? "tooltipSync" : undefined}
+              syncMethod="index"
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
               <XAxis
                 dataKey="x"
@@ -1709,7 +1749,14 @@ export default function MultiDeviceLatencyChart({
             <div style={{ height: 256, overflow: "visible", position: "relative" }}>
               <ResponsiveContainer width="100%" height="100%">
                 {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
-                <LineChart data={chartData} margin={{ top: 8, right: 32, left: 0, bottom: 8 }}>
+                <LineChart 
+                  data={chartData} 
+                  margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
+                  onMouseMove={enableSync ? handleChartMouseMove : undefined}
+                  onMouseLeave={enableSync ? handleChartMouseLeave : undefined}
+                  syncId={enableSync ? "tooltipSync" : undefined}
+                  syncMethod="index"
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
                   <XAxis
                     dataKey="x"

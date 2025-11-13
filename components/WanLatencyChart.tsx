@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -23,6 +23,7 @@ import { applyRollingWindowToDataset } from "./utils/rollingWindowStats";
 import { calculateYAxisDomain, calculateNiceTicks } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
+import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 
 type Row = {
   x: string; // ISO timestamp
@@ -70,12 +71,17 @@ interface WanLatencyChartProps {
    * - 'drawer': Full width, hides maximize button and brush
    */
   variant?: 'default' | 'drawer';
+  /**
+   * Enable tooltip synchronization with other charts via SyncedChartContext
+   */
+  enableSync?: boolean;
 }
 
 export default function WanLatencyChart({ 
   hideDrawer = false, 
   onMaximize,
-  variant = 'default' 
+  variant = 'default',
+  enableSync = false
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -105,6 +111,9 @@ export default function WanLatencyChart({
   
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // === Tooltip sync state ===
+  const syncContext = enableSync ? useSyncedChart() : undefined;
 
   // Parse CSV data
   const parseCSV = (text: string): Row[] => {
@@ -408,6 +417,30 @@ export default function WanLatencyChart({
     }
   };
 
+  // === Sync handlers ===
+  const handleChartMouseMove = useCallback((state: any) => {
+    if (!enableSync || !syncContext) return;
+    
+    // Extract active tooltip index from recharts state
+    if (state && state.activeTooltipIndex !== undefined && aggregatedData[state.activeTooltipIndex]) {
+      const timestamp = aggregatedData[state.activeTooltipIndex].x;
+      syncContext.setSyncedTimestamp(timestamp);
+    }
+  }, [enableSync, syncContext, aggregatedData]);
+
+  const handleChartMouseLeave = useCallback(() => {
+    if (!enableSync || !syncContext) return;
+    syncContext.setSyncedTimestamp(null);
+  }, [enableSync, syncContext]);
+
+  // Calculate active index from synced timestamp
+  const syncedActiveIndex = useMemo(() => {
+    if (!enableSync || !syncContext || !syncContext.syncedTimestamp) {
+      return null;
+    }
+    return findClosestTimestampIndex(aggregatedData, syncContext.syncedTimestamp);
+  }, [enableSync, syncContext, syncContext?.syncedTimestamp, aggregatedData]);
+
   const renderMetricLegend = () => {
     const legendItems: LegendItem[] = (["latency_ms", "jitter_ms", "packet_loss_percent"] as MetricKey[]).map((key) => ({
       id: key,
@@ -503,7 +536,14 @@ export default function WanLatencyChart({
     <div style={{ overflow: "visible", position: "relative" }}>
       <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
         <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={aggregatedData} margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}>
+            <LineChart 
+              data={aggregatedData} 
+              margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}
+              onMouseMove={enableSync ? handleChartMouseMove : undefined}
+              onMouseLeave={enableSync ? handleChartMouseLeave : undefined}
+              syncId={enableSync ? "tooltipSync" : undefined}
+              syncMethod="index"
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
               <XAxis
                 dataKey="x"
