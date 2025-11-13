@@ -748,9 +748,13 @@ Increase: +40KB gzipped (~9.6% increase)
   - Main view charts remain independent (sync only in drawer)
 
 **Next Steps (if continuing):**
-1. Implement Phase 6 (Drag & Drop) for chart reordering
-2. Implement Phase 7 (Keyboard Shortcuts) for power users
-3. Consider localStorage persistence for drawer width
+1. Implement Global Brush in drawer affecting both charts simultaneously
+   - Lift brush state to CombinedLatencyPage or shared context
+   - Pass shared `range` prop to both charts when in drawer
+   - Single brush control for synchronized time range selection
+2. Implement Phase 6 (Drag & Drop) for chart reordering
+3. Implement Phase 7 (Keyboard Shortcuts) for power users
+4. Consider localStorage persistence for drawer width and brush range
 
 **Approved By:** Completed through Phase 5
 
