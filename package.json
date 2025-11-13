@@ -26,6 +26,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@types/feather-icons": "^4.29.4",
     "@types/node": "^24.5.2",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",

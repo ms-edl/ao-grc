@@ -86,24 +86,22 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
 
   return (
     <div
-      className="flex flex-col absolute-gradient-border"
+      className="flex flex-col"
       style={{
         position: 'relative',
-        backgroundColor: "rgb(var(--surface-overlay) / 0.7)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        borderRadius: 8,
-        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+        borderRadius: 12,
+        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.2)",
         padding: 16,
         width,
         gap: 8,
         zIndex: 1000,
-        backgroundImage: `
-          linear-gradient(rgb(var(--surface-overlay) / 0.7), rgb(var(--surface-overlay) / 0.7)),
-          linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
+        border: '1px solid transparent',
+        background: `
+          linear-gradient(rgb(var(--surface-overlay) / 0.8), rgb(var(--surface-overlay) / 0.4)) padding-box,
+          linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end)) border-box
         `,
-        backgroundOrigin: 'border-box',
-        backgroundClip: 'padding-box, border-box'
       }}
     >
       <div style={{ fontSize: 12 }} className="text-content-primary font-medium">
