@@ -98,7 +98,28 @@ const normalizeBand = (raw: string | undefined | null): BandCode | null => {
   return null;
 };
 
-export default function MultiDeviceLatencyChart() {
+interface MultiDeviceLatencyChartProps {
+  /**
+   * If true, hides the internal drawer (useful when chart is already inside a drawer)
+   */
+  hideDrawer?: boolean;
+  /**
+   * Optional callback for maximize button (overrides default drawer behavior)
+   */
+  onMaximize?: () => void;
+  /**
+   * Variant for different display contexts:
+   * - 'default': Fixed width, shows maximize button and brush
+   * - 'drawer': Full width, hides maximize button and brush
+   */
+  variant?: 'default' | 'drawer';
+}
+
+export default function MultiDeviceLatencyChart({ 
+  hideDrawer = false, 
+  onMaximize,
+  variant = 'default' 
+}: MultiDeviceLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
   const [deviceNames, setDeviceNames] = useState<Record<string, string>>({});
@@ -934,9 +955,13 @@ export default function MultiDeviceLatencyChart() {
     );
   }
 
+  const widthStyle = variant === 'drawer' 
+    ? { overflow: "visible", width: "100%", maxWidth: "100%" } 
+    : { overflow: "visible", width: "864px" };
+
   return (
     <>
-    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "864px" }}>
+    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
       <div className="p-5 flex flex-col items-start gap-3">
         {/* Title row with actions on the right */}
         <div className="relative w-full">
@@ -965,12 +990,20 @@ export default function MultiDeviceLatencyChart() {
                   />
                 </div>
 
-                <FilterDivider />
+                {variant === 'default' && (
+                  <>
+                    <FilterDivider />
 
-                <MaximizeButton onClick={() => {
-                  setIsFilterOpen(false);
-                  setIsDrawerOpen(true);
-                }} />
+                    <MaximizeButton onClick={() => {
+                      if (onMaximize) {
+                        onMaximize();
+                      } else {
+                        setIsFilterOpen(false);
+                        setIsDrawerOpen(true);
+                      }
+                    }} />
+                  </>
+                )}
               </>
             }
           />
@@ -1490,6 +1523,7 @@ export default function MultiDeviceLatencyChart() {
           </ResponsiveContainer>
         </div>
 
+        {variant === 'default' && (
         <div>
           <ExternalBrush
             data={data as any}
@@ -1501,8 +1535,10 @@ export default function MultiDeviceLatencyChart() {
             onChange={({ startIndex, endIndex }) => setRange({ left: startIndex, right: endIndex })}
           />
         </div>
+        )}
       </div>
     </div>
+    {!hideDrawer && (
     <ResizableChartDrawer 
       open={isDrawerOpen} 
       onOpenChange={setIsDrawerOpen} 
@@ -1817,6 +1853,7 @@ export default function MultiDeviceLatencyChart() {
           </div>
         </div>
       </ResizableChartDrawer>
+    )}
     </>
   );
 }

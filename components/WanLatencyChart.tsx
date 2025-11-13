@@ -55,7 +55,28 @@ const METRIC_LABELS: Record<MetricKey, string> = {
   packet_loss_percent: "Packet Loss",
 };
 
-export default function WanLatencyChart() {
+interface WanLatencyChartProps {
+  /**
+   * If true, hides the internal drawer (useful when chart is already inside a drawer)
+   */
+  hideDrawer?: boolean;
+  /**
+   * Optional callback for maximize button (overrides default drawer behavior)
+   */
+  onMaximize?: () => void;
+  /**
+   * Variant for different display contexts:
+   * - 'default': Fixed width, shows maximize button and brush
+   * - 'drawer': Full width, hides maximize button and brush
+   */
+  variant?: 'default' | 'drawer';
+}
+
+export default function WanLatencyChart({ 
+  hideDrawer = false, 
+  onMaximize,
+  variant = 'default' 
+}: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -732,6 +753,7 @@ export default function WanLatencyChart() {
         </ResponsiveContainer>
       </div>
 
+      {variant === 'default' && (
       <div>
         <ExternalBrush
             data={data as any}
@@ -743,6 +765,7 @@ export default function WanLatencyChart() {
             onChange={({ startIndex, endIndex }) => setRange({ left: startIndex, right: endIndex })}
         />
       </div>
+      )}
     </div>
   );
   };
@@ -774,11 +797,20 @@ export default function WanLatencyChart() {
   return (
     <>
       <ChartCard
+        variant={variant}
         header={
           <ChartHeader
             title="WAN history"
             metricButton={<MetricButton label="Latency" />}
-            actions={<MaximizeButton onClick={() => setIsDrawerOpen(true)} />}
+            actions={variant === 'default' ? (
+              <MaximizeButton onClick={() => {
+                if (onMaximize) {
+                  onMaximize();
+                } else {
+                  setIsDrawerOpen(true);
+                }
+              }} />
+            ) : undefined}
           />
         }
         legend={renderMetricLegend()}
@@ -786,6 +818,7 @@ export default function WanLatencyChart() {
         {renderChart()}
       </ChartCard>
 
+      {!hideDrawer && (
       <ResizableChartDrawer 
         open={isDrawerOpen} 
         onOpenChange={setIsDrawerOpen}
@@ -796,6 +829,7 @@ export default function WanLatencyChart() {
       >
         {renderChart()}
       </ResizableChartDrawer>
+      )}
     </>
   );
 }

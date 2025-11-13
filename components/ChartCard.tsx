@@ -5,6 +5,7 @@ interface ChartCardProps {
   legend: ReactNode;
   legendActions?: ReactNode; // Optional second legend row for toggles/actions
   children: ReactNode;
+  variant?: 'default' | 'drawer'; // Variant for different display contexts
 }
 
 /**
@@ -18,15 +19,21 @@ interface ChartCardProps {
  * - legend: Primary legend row (device/metric indicators)
  * - legendActions: Optional second legend row for toggles (Avg/Min/Max, etc.)
  * - children: Chart content
+ * - variant: 'default' (fixed width) or 'drawer' (full width)
  */
 export default function ChartCard({ 
   header,
   legend,
   legendActions,
-  children
+  children,
+  variant = 'default'
 }: ChartCardProps) {
+  const widthStyle = variant === 'drawer' 
+    ? { overflow: "visible", width: "100%", maxWidth: "100%" } 
+    : { overflow: "visible", width: "864px" };
+
   return (
-    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "864px" }}>
+    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
       {/* Header container with padding */}
       <div className="p-5 flex flex-col items-start gap-3">
         {/* Title row with actions */}
@@ -35,7 +42,7 @@ export default function ChartCard({
         {/* Legend row */}
         {legend}
 
-        {/* Optional legend actions row (e.g., Avg/Min/Max toggle) */}
+        {/* Optional legend actions row (e.g., Avg/Min/Max, etc.) */}
         {legendActions}
       </div>
 
