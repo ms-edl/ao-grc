@@ -38,3 +38,27 @@ export const Icon: React.FC<IconProps> = ({
 
 export default Icon;
 
+// Commonly used icons as components
+export const SearchIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="search" size={size} className={className} />
+);
+
+export const CheckIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="check" size={size} className={className} />
+);
+
+export const ChevronsUpDownIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="chevrons-up-down" size={size} className={className} />
+);
+
+export const XIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="x" size={size} className={className} />
+);
+
+export const WifiIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="wifi" size={size} className={className} />
+);
+
+export const SmartphoneIcon = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <Icon name="smartphone" size={size} className={className} />
+);

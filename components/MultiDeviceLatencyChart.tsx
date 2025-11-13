@@ -11,8 +11,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ExternalBrush } from "./ExternalBrush";
-import ChartDrawer from "./ChartDrawer";
-import ChartHeader, { MetricButton, MaximizeButton, FilterDivider } from "./ChartHeader";
+import { ResizableChartDrawer } from "./ui/resizable-chart-drawer";
+import ChartHeader, { MetricButton, MaximizeButton, FilterDivider, AoBtnFilter } from "./ChartHeader";
 import { useChartTheme } from "./hooks/useChartTheme";
 import { useChartLegendHover } from "./hooks/useChartLegendHover";
 import { ChartLegend, LegendItem } from "./ChartLegend";
@@ -115,7 +115,6 @@ export default function MultiDeviceLatencyChart() {
   // Legend hover with tooltip support
   const {
     hoveredItem: hoveredLegendDevice,
-    showTooltipForItem: showIsolateTooltip,
     handleMouseEnter: handleLegendMouseEnter,
     handleMouseLeave: handleLegendMouseLeave,
     cleanup: cleanupLegendHover,
@@ -948,50 +947,22 @@ export default function MultiDeviceLatencyChart() {
               <>
                 {/* Filter buttons group */}
                 <div className="flex items-center gap-1">
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      aria-label="WiFi Bands"
-                      className="inline-flex items-center justify-center rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                      style={{ height: '32px', paddingLeft: '8px', paddingRight: '8px', gap: '4px' }}
-                      onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
-                      ref={filterButtonRef}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M12 20h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="ui-12-book text-content-primary">
-                        {selectedBands.size}/{["24", "5", "5m"].length}
-                      </span>
-                    </button>
-                    <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 translate-y-4 group-hover:translate-y-0 mb-2 px-2 py-1 rounded text-xs text-content-primary whitespace-nowrap transition-all duration-200 shadow-md absolute-gradient-border" style={{ backgroundColor: 'rgb(var(--surface-overlay))', zIndex: 50 }}>
-                      Wi-Fi bands
-                    </div>
-                  </div>
+                  <AoBtnFilter
+                    iconName="wifi"
+                    countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                    ariaLabel="WiFi Bands"
+                    tooltipText="Wi-Fi bands"
+                    onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
+                    buttonRef={filterButtonRef}
+                  />
 
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      aria-label="Client Devices"
-                      className="inline-flex items-center justify-center rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                      style={{ height: '32px', paddingLeft: '8px', paddingRight: '8px', gap: '4px' }}
-                      onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" strokeWidth="2" />
-                        <line x1="12" y1="18" x2="12" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                      <span className="ui-12-book text-content-primary">
-                        {selectedClients.size === 0 ? deviceIds.length : selectedClients.size}/{deviceIds.length}
-                      </span>
-                    </button>
-                    <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 translate-y-4 group-hover:translate-y-0 mb-2 px-2 py-1 rounded text-xs text-content-primary whitespace-nowrap transition-all duration-200 shadow-md absolute-gradient-border" style={{ backgroundColor: 'rgb(var(--surface-overlay))', zIndex: 50 }}>
-                      Client devices
-                    </div>
-                  </div>
+                  <AoBtnFilter
+                    iconName="smartphone"
+                    countLabel={`${selectedClients.size === 0 ? deviceIds.length : selectedClients.size}/${deviceIds.length}`}
+                    ariaLabel="Client Devices"
+                    tooltipText="Client devices"
+                    onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
+                  />
                 </div>
 
                 <FilterDivider />
@@ -1217,7 +1188,6 @@ export default function MultiDeviceLatencyChart() {
                 setHoveredDevice(null);
                 handleLegendMouseLeave();
               }}
-              showTooltipForItem={showIsolateTooltip}
               focusedItem={focusedDevice}
               onExitFocus={() => {
                 setFocusedDevice(null);
@@ -1303,7 +1273,7 @@ export default function MultiDeviceLatencyChart() {
       </div>
 
               <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
-        <div style={{ height: 360, overflow: "visible", position: "relative" }}>
+        <div style={{ height: 256, overflow: "visible", position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
             <LineChart data={chartData} margin={{ top: 8, right: 32, left: 0, bottom: 8 }}>
@@ -1533,7 +1503,14 @@ export default function MultiDeviceLatencyChart() {
         </div>
       </div>
     </div>
-    <ChartDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
+    <ResizableChartDrawer 
+      open={isDrawerOpen} 
+      onOpenChange={setIsDrawerOpen} 
+      title="Client History"
+      defaultSize={50}
+      minSize={30}
+      maxSize={80}
+    >
         <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "100%", maxWidth: "100%" }}>
           <div className="p-5 flex flex-col items-start gap-3">
             {/* Title row with actions on the right */}
@@ -1545,43 +1522,19 @@ export default function MultiDeviceLatencyChart() {
                   <>
                     {/* Filter buttons group */}
                     <div className="flex items-center gap-1">
-                      <div className="relative group">
-                        <button
-                          type="button"
-                          aria-label="WiFi Bands"
-                          className="inline-flex items-center justify-center rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                          style={{ height: '32px', paddingLeft: '8px', paddingRight: '8px', gap: '4px' }}
-                          onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M12 20h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          <span className="ui-12-book text-content-primary">
-                            {selectedBands.size}/{["24", "5", "5m"].length}
-                          </span>
-                        </button>
-                      </div>
+                      <AoBtnFilter
+                        iconName="wifi"
+                        countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                        ariaLabel="WiFi Bands"
+                        onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
+                      />
 
-                      <div className="relative group">
-                        <button
-                          type="button"
-                          aria-label="Client Devices"
-                          className="inline-flex items-center justify-center rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                          style={{ height: '32px', paddingLeft: '8px', paddingRight: '8px', gap: '4px' }}
-                          onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" strokeWidth="2" />
-                            <line x1="12" y1="18" x2="12" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
-                          <span className="ui-12-book text-content-primary">
-                            {selectedClients.size === 0 ? deviceIds.length : selectedClients.size}/{deviceIds.length}
-                          </span>
-                        </button>
-                      </div>
+                      <AoBtnFilter
+                        iconName="smartphone"
+                        countLabel={`${selectedClients.size === 0 ? deviceIds.length : selectedClients.size}/${deviceIds.length}`}
+                        ariaLabel="Client Devices"
+                        onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
+                      />
                     </div>
                   </>
                 }
@@ -1632,7 +1585,6 @@ export default function MultiDeviceLatencyChart() {
                     setHoveredDevice(null);
                     handleLegendMouseLeave();
                   }}
-                  showTooltipForItem={showIsolateTooltip}
                   focusedItem={focusedDevice}
                   onExitFocus={() => {
                     setFocusedDevice(null);
@@ -1718,7 +1670,7 @@ export default function MultiDeviceLatencyChart() {
           </div>
 
           <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
-            <div style={{ height: 600, overflow: "visible", position: "relative" }}>
+            <div style={{ height: 256, overflow: "visible", position: "relative" }}>
               <ResponsiveContainer width="100%" height="100%">
                 {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
                 <LineChart data={chartData} margin={{ top: 8, right: 32, left: 0, bottom: 8 }}>
@@ -1851,7 +1803,7 @@ export default function MultiDeviceLatencyChart() {
               </ResponsiveContainer>
             </div>
 
-            <div>
+            <div style={{ display: 'none' }}>
               <ExternalBrush
                 data={data as any}
                 xKey="x"
@@ -1864,7 +1816,7 @@ export default function MultiDeviceLatencyChart() {
             </div>
           </div>
         </div>
-      </ChartDrawer>
+      </ResizableChartDrawer>
     </>
   );
 }

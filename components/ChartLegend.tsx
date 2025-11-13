@@ -1,4 +1,5 @@
-import React from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
+import { Kbd } from './ui/kbd';
 
 export interface LegendItem {
   id: string;
@@ -18,10 +19,6 @@ interface ChartLegendProps {
   onMouseEnter: (id: string, isHidden: boolean) => void;
   onMouseLeave: () => void;
   
-  // Tooltip
-  showTooltipForItem: string | null;
-  tooltipText?: string;
-  
   // Focus mode
   focusedItem: string | null;
   onExitFocus?: () => void;
@@ -39,8 +36,6 @@ export function ChartLegend({
   hoveredItem: _hoveredItem,
   onMouseEnter,
   onMouseLeave,
-  showTooltipForItem,
-  tooltipText,
   focusedItem,
   onExitFocus,
   showFocusMode = true,
@@ -48,8 +43,6 @@ export function ChartLegend({
 }: ChartLegendProps) {
   const hiddenCount = items.filter(item => item.isHidden).length;
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
-  const modifierKey = isMac ? '⌥' : 'Alt';
-  const defaultTooltipText = `${modifierKey} + Click to focus`;
 
   if (focusedItem) {
     const focusedItemData = items.find(item => item.id === focusedItem);
@@ -82,50 +75,51 @@ export function ChartLegend({
   return (
     <div className={`w-full flex flex-wrap items-center justify-start text-content-secondary text-xs ${className}`} style={{ gap: "4px 4px" }}>
       {items.map((item) => (
-        <div key={item.id} className="relative group">
-          <div 
-            className="flex items-center hover:bg-surface-action-hover transition-colors rounded cursor-pointer" 
-            style={{ 
-              padding: "4px 8px",
-              opacity: item.isHidden ? 0.4 : 1,
-              gap: "4px",
-              minWidth: 0
-            }}
-            onMouseEnter={() => onMouseEnter(item.id, !!item.isHidden)}
-            onMouseLeave={onMouseLeave}
-            onClick={(e) => {
-              if (showFocusMode && e.altKey && onFocusItem) {
-                onFocusItem(item.id);
-              } else {
-                onToggleItem(item.id);
-              }
-            }}
-          >
-            <span
-              className="inline-block rounded-full flex-shrink-0"
-              style={{ width: 8, height: 8, backgroundColor: item.color }}
-            />
-            <span 
-              className="truncate" 
-              style={{ 
-                maxWidth: '160px',
-                textDecoration: item.isHidden ? 'line-through' : 'none'
-              }}
-            >
-              {item.label}
-            </span>
-          </div>
-          
-          {/* Isolate/Focus Tooltip */}
-          {showFocusMode && showTooltipForItem === item.id && (
-            <div 
-              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-surface-tile rounded text-xs text-content-primary whitespace-nowrap shadow-md absolute-gradient-border"
-              style={{ pointerEvents: 'none', zIndex: 50 }}
-            >
-              {tooltipText || defaultTooltipText}
-            </div>
-          )}
-        </div>
+        <TooltipProvider key={item.id} delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div 
+                className="flex items-center hover:bg-surface-action-hover transition-colors rounded cursor-pointer" 
+                style={{ 
+                  padding: "4px 8px",
+                  opacity: item.isHidden ? 0.4 : 1,
+                  gap: "4px",
+                  minWidth: 0
+                }}
+                onMouseEnter={() => onMouseEnter(item.id, !!item.isHidden)}
+                onMouseLeave={onMouseLeave}
+                onClick={(e) => {
+                  if (showFocusMode && e.altKey && onFocusItem) {
+                    onFocusItem(item.id);
+                  } else {
+                    onToggleItem(item.id);
+                  }
+                }}
+              >
+                <span
+                  className="inline-block rounded-full flex-shrink-0"
+                  style={{ width: 8, height: 8, backgroundColor: item.color }}
+                />
+                <span 
+                  className="truncate" 
+                  style={{ 
+                    maxWidth: '160px',
+                    textDecoration: item.isHidden ? 'line-through' : 'none'
+                  }}
+                >
+                  {item.label}
+                </span>
+              </div>
+            </TooltipTrigger>
+            {showFocusMode && (
+              <TooltipContent side="bottom">
+                <span className="inline-flex items-center gap-1.5">
+                  <Kbd style={{ marginLeft: '-4px' }}>{isMac ? '⌥' : 'Alt'}</Kbd> + Click to focus
+                </span>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       ))}
       
       {hiddenCount > 0 && (

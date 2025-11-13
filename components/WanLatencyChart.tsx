@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ExternalBrush } from "./ExternalBrush";
-import ChartDrawer from "./ChartDrawer";
+import { ResizableChartDrawer } from "./ui/resizable-chart-drawer";
 import ChartCard from "./ChartCard";
 import { useTimeAxis, toDate } from "./TimeAxis";
 import ChartHeader, { MetricButton, MaximizeButton } from "./ChartHeader";
@@ -74,7 +74,6 @@ export default function WanLatencyChart() {
   // Legend hover with tooltip support for focus mode
   const {
     hoveredItem: hoveredLegendMetric,
-    showTooltipForItem: showIsolateTooltip,
     handleMouseEnter: handleLegendMouseEnter,
     handleMouseLeave: handleLegendMouseLeave,
     cleanup: cleanupLegendHover,
@@ -431,7 +430,6 @@ export default function WanLatencyChart() {
             setHoveredMetric(null);
             handleLegendMouseLeave();
           }}
-          showTooltipForItem={showIsolateTooltip}
           focusedItem={focusedMetric}
           onExitFocus={() => {
             setFocusedMetric(null);
@@ -471,15 +469,18 @@ export default function WanLatencyChart() {
   );
   };
 
-  const renderChart = (isDrawer: boolean = false) => {
+  const renderChart = () => {
     // WAN chart has 2 Y axes (left for ms, right for %), so right margin should be 8
     // Labels will be positioned within the right Y axis space
     const hasRightYAxis = true; // WAN chart always has right Y axis for packet loss
     const rightMargin = hasRightYAxis ? 0 : 32;
     
+    // Same height for all charts
+    const chartHeight = 256;
+    
     return (
     <div style={{ overflow: "visible", position: "relative" }}>
-      <div style={{ height: isDrawer ? 560 : 360, overflow: "visible", position: "relative" }}>
+      <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
         <ResponsiveContainer width="100%" height="100%">
             <LineChart data={aggregatedData} margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
@@ -782,15 +783,19 @@ export default function WanLatencyChart() {
         }
         legend={renderMetricLegend()}
       >
-        {renderChart(false)}
+        {renderChart()}
       </ChartCard>
 
-      <ChartDrawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)}
+      <ResizableChartDrawer 
+        open={isDrawerOpen} 
+        onOpenChange={setIsDrawerOpen}
+        title="WAN History"
+        defaultSize={50}
+        minSize={30}
+        maxSize={80}
       >
-        {renderChart(true)}
-      </ChartDrawer>
+        {renderChart()}
+      </ResizableChartDrawer>
     </>
   );
 }

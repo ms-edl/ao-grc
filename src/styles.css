@@ -394,6 +394,25 @@ body {
   }
 }
 
+/* Vaul Drawer Animations - Right Side */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 /* Animation Utilities */
 .animate-accordion-down {
   animation: accordion-down 0.2s ease-out;
@@ -413,4 +432,38 @@ body {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Aria States */
+[aria-selected="true"] {
+  background-color: rgb(var(--surface-action-hover));
+}
+
+/* Vaul Drawer States - Right Side */
+[vaul-drawer][data-state="open"],
+[vaul-drawer][data-state="open"] > * {
+  animation: slideInFromRight 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+[vaul-drawer][data-state="closed"],
+[vaul-drawer][data-state="closed"] > * {
+  animation: slideOutToRight 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+/* Vaul Overlay States */
+[vaul-overlay][data-state="open"] {
+  animation: fadeIn 0.2s ease-out;
+}
+
+[vaul-overlay][data-state="closed"] {
+  animation: fadeOut 0.2s ease-out;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }

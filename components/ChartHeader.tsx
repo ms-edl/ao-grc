@@ -1,4 +1,9 @@
 import { ReactNode } from 'react';
+import { Icon } from './ui/icons';
+import { TooltipButton } from './ui/tooltip-button';
+
+// Re-export AoBtnFilter for convenience
+export { AoBtnFilter } from './ui/ao-btn-filter';
 
 interface ChartHeaderProps {
   title: string;
@@ -47,17 +52,7 @@ export function MetricButton({ label, onClick }: MetricButtonProps) {
       onClick={onClick}
     >
       <span className="text-xs font-medium">{label}</span>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="ml-1.5"
-        aria-hidden
-      >
-        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <Icon name="chevron-down" size={16} className="ml-1.5" />
     </button>
   );
 }
@@ -71,24 +66,16 @@ interface MaximizeButtonProps {
 
 export function MaximizeButton({ onClick }: MaximizeButtonProps) {
   return (
-    <div className="relative group">
-      <button
-        type="button"
-        aria-label="Maximise"
-        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-        onClick={onClick}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <polyline points="15 3 21 3 21 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <polyline points="9 21 3 21 3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="21" y1="3" x2="14" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="3" y1="21" x2="10" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 translate-y-4 group-hover:translate-y-0 mb-2 px-2 py-1 rounded text-xs text-content-primary whitespace-nowrap transition-all duration-200 shadow-md absolute-gradient-border" style={{ backgroundColor: 'rgb(var(--surface-overlay))', zIndex: 50 }}>
-        Maximise
-      </div>
-    </div>
+    <TooltipButton
+      type="button"
+      aria-label="Maximise"
+      className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+      onClick={onClick}
+      tooltip="Maximise"
+      tooltipSide="bottom"
+    >
+      <Icon name="maximize" size={16} />
+    </TooltipButton>
   );
 }
 
@@ -97,5 +84,42 @@ export function MaximizeButton({ onClick }: MaximizeButtonProps) {
  */
 export function FilterDivider() {
   return <div className="w-px h-5" style={{ backgroundColor: 'rgb(var(--border-border-flat))' }} />;
+}
+
+/**
+ * SizeToggleButton - Toggle between chart sizes (sm/md)
+ */
+interface SizeToggleButtonProps {
+  size: 'sm' | 'md';
+  onSizeChange: (size: 'sm' | 'md') => void;
+}
+
+export function SizeToggleButton({ size, onSizeChange }: SizeToggleButtonProps) {
+  return (
+    <TooltipButton
+      type="button"
+      aria-label={size === 'sm' ? 'Expand chart' : 'Shrink chart'}
+      className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+      onClick={() => onSizeChange(size === 'sm' ? 'md' : 'sm')}
+      tooltip={size === 'sm' ? 'Expand chart' : 'Shrink chart'}
+      tooltipSide="bottom"
+    >
+      {size === 'sm' ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" y1="3" x2="14" y2="10" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="4 14 10 14 10 20" />
+          <polyline points="20 10 14 10 14 4" />
+          <line x1="14" y1="10" x2="21" y2="3" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+      )}
+    </TooltipButton>
+  );
 }
 

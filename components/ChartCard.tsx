@@ -23,7 +23,7 @@ export default function ChartCard({
   header,
   legend,
   legendActions,
-  children 
+  children
 }: ChartCardProps) {
   return (
     <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "864px" }}>
