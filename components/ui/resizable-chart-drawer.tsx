@@ -17,6 +17,7 @@ interface ResizableChartDrawerProps {
   minSize?: number      // Minimum percentage (default: 30)
   maxSize?: number      // Maximum percentage (default: 80)
   closeButtonTooltip?: React.ReactNode  // Tooltip content for the close button
+  bottomContent?: React.ReactNode  // Optional fixed content at bottom (e.g., global brush)
 }
 
 /**
@@ -32,6 +33,7 @@ export function ResizableChartDrawer({
   minSize = 30,
   maxSize = 80,
   closeButtonTooltip,
+  bottomContent,
 }: ResizableChartDrawerProps) {
   // Default tooltip with Kbd component
   const defaultTooltip = (
@@ -104,7 +106,7 @@ export function ResizableChartDrawer({
               {/* Drawer Content UI - fills the resizable panel */}
               <div
                 className={cn(
-                  "h-full w-full flex flex-col bg-surface-section border-l",
+                  "h-full w-full flex flex-col bg-surface-section border-l relative",
                   "outline-none"
                 )}
                 style={{
@@ -119,7 +121,11 @@ export function ResizableChartDrawer({
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gradient-border flex-shrink-0">
-                  <DrawerPrimitive.Title className="text-lg font-semibold text-content-primary">
+                  <DrawerPrimitive.Title className="flex items-center gap-2 font-semibold text-content-primary" style={{ fontSize: '1.25rem' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path opacity="0.7" d="M7.24235 11.0828C7.69086 9.40921 9.41117 7.6889 11.0848 7.24039L21.5188 4.44419C23.1924 3.99568 24.1855 4.98882 23.737 6.66242L20.9408 17.0964C20.4923 18.77 18.772 20.4903 17.0984 20.9388L6.66437 23.735C4.99077 24.1835 3.99764 23.1904 4.44614 21.5168L7.24235 11.0828Z" fill="rgb(var(--content-secondary))"/>
+                      <path d="M3.05936 6.89971C3.50787 5.22611 5.22818 3.5058 6.90178 3.05729L17.3358 0.261088C19.0094 -0.187419 20.0025 0.805715 19.554 2.47932L16.7578 12.9133C16.3093 14.5869 14.589 16.3072 12.9154 16.7557L2.48139 19.5519C0.807789 20.0004 -0.185349 19.0073 0.263159 17.3337L3.05936 6.89971Z" fill="rgb(var(--content-secondary))"/>
+                    </svg>
                     {title}
                   </DrawerPrimitive.Title>
                   <TooltipButton
@@ -137,9 +143,36 @@ export function ResizableChartDrawer({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                  {children}
+                <div className="flex-1 overflow-y-auto" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
+                  <div className="p-6">
+                    {children}
+                  </div>
                 </div>
+
+                {/* Bottom Content (Fixed) */}
+                {bottomContent && (
+                  <div 
+                    className="flex-shrink-0 absolute bottom-0 left-0 right-0"
+                    style={{ 
+                      height: '100px',
+                      overflow: 'visible',
+                      zIndex: 1001,
+                    }}
+                  >
+                    {/* Gradient Background Layer */}
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        background: 'linear-gradient(to bottom, rgb(var(--surface-section) / 0) 0%, rgb(var(--surface-section) / 1) 100%)',
+                        zIndex: 1,
+                      }}
+                    />
+                    {/* Brush Content Layer */}
+                    <div className="px-6 py-4 h-full relative" style={{ zIndex: 2 }}>
+                      {bottomContent}
+                    </div>
+                  </div>
+                )}
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>

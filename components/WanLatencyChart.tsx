@@ -75,13 +75,28 @@ interface WanLatencyChartProps {
    * Enable tooltip synchronization with other charts via SyncedChartContext
    */
   enableSync?: boolean;
+  /**
+   * Shared range for synchronized brush control (used in drawer)
+   */
+  sharedRange?: { startIndex: number; endIndex: number };
+  /**
+   * Callback when range changes (for internal brush)
+   */
+  onRangeChange?: (range: { startIndex: number; endIndex: number }) => void;
+  /**
+   * Callback to report data length after loading (for global brush)
+   */
+  onDataLoad?: (dataLength: number, data: any[]) => void;
 }
 
 export default function WanLatencyChart({ 
   hideDrawer = false, 
   onMaximize,
   variant = 'default',
-  enableSync = false
+  enableSync = false,
+  sharedRange,
+  onRangeChange,
+  onDataLoad
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -167,6 +182,10 @@ export default function WanLatencyChart({
         const parsed = parseCSV(csvText);
         setData(parsed);
         setLoading(false);
+        // Report data length to parent for global brush
+        if (onDataLoad) {
+          onDataLoad(parsed.length, parsed);
+        }
       } catch (e: any) {
         if (cancelled) return;
         setError(e?.message || String(e));
@@ -194,7 +213,12 @@ export default function WanLatencyChart({
     }));
   }, [len]);
 
-  const slicedData = useMemo(() => data.slice(range.left, range.right + 1), [data, range]);
+  // Use sharedRange when in drawer, otherwise use internal range
+  const effectiveRange = variant === 'drawer' && sharedRange 
+    ? { left: sharedRange.startIndex, right: sharedRange.endIndex }
+    : range;
+
+  const slicedData = useMemo(() => data.slice(effectiveRange.left, effectiveRange.right + 1), [data, effectiveRange]);
 
   // Calculate Y-axis domains from the FULL dataset (not just visible slice)
   // This prevents Y-axis jumps when changing the timeframe

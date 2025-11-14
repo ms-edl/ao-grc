@@ -118,13 +118,28 @@ interface MultiDeviceLatencyChartProps {
    * Enable tooltip synchronization with other charts via SyncedChartContext
    */
   enableSync?: boolean;
+  /**
+   * Shared range for synchronized brush control (used in drawer)
+   */
+  sharedRange?: { startIndex: number; endIndex: number };
+  /**
+   * Callback when range changes (for internal brush)
+   */
+  onRangeChange?: (range: { startIndex: number; endIndex: number }) => void;
+  /**
+   * Callback to report data length after loading (for global brush)
+   */
+  onDataLoad?: (dataLength: number, data: any[]) => void;
 }
 
 export default function MultiDeviceLatencyChart({ 
   hideDrawer = false, 
   onMaximize,
   variant = 'default',
-  enableSync = false
+  enableSync = false,
+  sharedRange,
+  onRangeChange,
+  onDataLoad
 }: MultiDeviceLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -379,6 +394,10 @@ export default function MultiDeviceLatencyChart({
         setDeviceNames(parsed.names);
         setData(augmentedRows);
         setLoading(false);
+        // Report data length to parent for global brush
+        if (onDataLoad) {
+          onDataLoad(augmentedRows.length, augmentedRows);
+        }
       } catch (e: any) {
         if (cancelled) return;
         try {
@@ -408,7 +427,12 @@ export default function MultiDeviceLatencyChart({
     setRange(prev => ({ left: 0, right: Math.max(prev.right, Math.min(24 * 7 - 1, len - 1)) }));
   }, [len]);
 
-  const slicedData = useMemo(() => data.slice(range.left, range.right + 1), [data, range]);
+  // Use sharedRange when in drawer, otherwise use internal range
+  const effectiveRange = variant === 'drawer' && sharedRange 
+    ? { left: sharedRange.startIndex, right: sharedRange.endIndex }
+    : range;
+
+  const slicedData = useMemo(() => data.slice(effectiveRange.left, effectiveRange.right + 1), [data, effectiveRange]);
 
   // Detect all device IDs present in the dataset (exclude synthetic "gap" and meta keys)
   const deviceIds = useMemo(() => {
