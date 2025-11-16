@@ -1,17 +1,12 @@
 import React from 'react';
 import { GraphLegendItem } from './graph-legend-item';
+import { BaseLegendItem, LegendCallbacks } from '../charts/types/LegendTypes';
 
-export interface GraphLegendProps {
+export interface GraphLegendProps extends LegendCallbacks {
   /**
    * Legend items
    */
-  items: Array<{
-    id: string;
-    label: string;
-    color?: string;
-    dashArray?: string;
-    isHidden?: boolean;
-  }>;
+  items: BaseLegendItem[];
   
   /**
    * Toggle visibility of an item
@@ -19,26 +14,9 @@ export interface GraphLegendProps {
   onToggleItem: (id: string) => void;
   
   /**
-   * Focus on a single item (Alt+Click)
-   */
-  onFocusItem?: (id: string) => void;
-  
-  /**
-   * Show all hidden items
-   */
-  onShowAll?: () => void;
-  
-  /**
-   * Hover handlers
-   */
-  onMouseEnter?: (id: string, isHidden: boolean) => void;
-  onMouseLeave?: () => void;
-  
-  /**
    * Focus mode
    */
   focusedItem?: string | null;
-  onExitFocus?: () => void;
   
   /**
    * Hover state for external tracking

@@ -1,23 +1,10 @@
 import { GraphLegendExtended } from './ui/graph-legend-extended';
 import { GraphLegendItem } from './ui/graph-legend-item';
+import { DrawerLegendItem as SharedDrawerLegendItem, DrawerLegendSectionItem as SharedDrawerLegendSectionItem } from './charts/types/LegendTypes';
 
-export interface DrawerLegendItem {
-  id: string;
-  label: string;
-  color: string;
-  min?: string | number;
-  avg?: string | number;
-  max?: string | number;
-  isHidden?: boolean;
-  activeMetric?: 'min' | 'avg' | 'max'; // Which metric is currently selected
-}
-
-export interface DrawerLegendSectionItem {
-  id: string;
-  label: string;
-  dashArray?: string;
-  isHidden?: boolean;
-}
+// Re-export shared types for backward compatibility
+export type DrawerLegendItem = SharedDrawerLegendItem;
+export type DrawerLegendSectionItem = SharedDrawerLegendSectionItem;
 
 interface ChartDrawerLegendProps {
   /**
@@ -69,12 +56,18 @@ export function ChartDrawerLegend({
 }: ChartDrawerLegendProps) {
   return (
     <div 
-      className={`flex flex-col gap-6 ${className}`}
+      className={`flex flex-col ${className}`}
       style={{ width: '100%', maxWidth: '288px', flexShrink: 0 }}
     >
       {/* Data Items Section */}
       {dataItems.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div 
+          className="flex flex-col gap-2" 
+          style={sectionItems.length > 0 ? { 
+            borderBottom: '1px solid rgb(var(--border-gradient-border))',
+            padding: '16px'
+          } : undefined}
+        >
           {dataItems.map((item) => {
             // Convert min/avg/max to flexible metaValues array
             const metaValues = [];
@@ -91,7 +84,7 @@ export function ChartDrawerLegend({
             return (
               <GraphLegendExtended
                 key={item.id}
-                color={item.color}
+                color={item.color || '#999'}
                 label={item.label}
                 metaValues={metaValues}
                 isHidden={item.isHidden}
@@ -104,9 +97,9 @@ export function ChartDrawerLegend({
         </div>
       )}
       
-      {/* Section Items (Band types, etc.) */}
+      {/* Section Items (Band types, etc.) - Separate section */}
       {sectionItems.length > 0 && (
-        <div className="flex flex-row flex-wrap gap-2">
+        <div className="flex flex-row flex-wrap gap-2" style={{ padding: '16px' }}>
           {sectionItems.map((item) => (
             <GraphLegendItem
               key={item.id}
