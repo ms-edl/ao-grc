@@ -34,6 +34,7 @@ interface ResizableChartDrawerProps {
   minWidth?: number     // Minimum width in pixels (default: 1080)
   closeButtonTooltip?: React.ReactNode  // Tooltip content for the close button
   bottomContent?: React.ReactNode  // Optional fixed content at bottom (e.g., global brush)
+  stickyXAxisContent?: React.ReactNode  // Optional sticky x-axis above brush
   availableWidgets?: AvailableWidget[]  // Available widgets to show in sidebar
   onWidgetSelect?: (widgetId: string) => void  // Handler for widget selection
   metricType?: MetricType  // Current metric type (min/avg/max)
@@ -61,6 +62,7 @@ export function ResizableChartDrawer({
   minWidth = 1080,
   closeButtonTooltip,
   bottomContent,
+  stickyXAxisContent,
   availableWidgets = [],
   onWidgetSelect,
   metricType,
@@ -461,6 +463,40 @@ export function ResizableChartDrawer({
                     </button>
                   </div>
                 </div>
+
+                {/* Sticky X-Axis (positioned above brush) */}
+                {stickyXAxisContent && (
+                  <div 
+                    className="flex-shrink-0 absolute bottom-0 left-0 right-0"
+                    style={{ 
+                      height: '140px',  // 40px for axis + 100px for brush
+                      overflow: 'visible',
+                      zIndex: 1000,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {/* Gradient Background Layer */}
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        background: 'linear-gradient(to bottom, rgb(var(--surface-section) / 0) 0%, rgb(var(--surface-section) / 0.8) 40%, rgb(var(--surface-section) / 1) 100%)',
+                        zIndex: 1,
+                      }}
+                    />
+                    {/* X-Axis Content Layer */}
+                    <div 
+                      className="absolute top-0 left-0 right-0 h-[40px]"
+                      style={{ 
+                        zIndex: 2, 
+                        paddingLeft: '6rem', 
+                        paddingRight: '6rem',
+                        pointerEvents: 'auto',
+                      }}
+                    >
+                      {stickyXAxisContent}
+                    </div>
+                  </div>
+                )}
 
                 {/* Bottom Content (Fixed) */}
                 {bottomContent && (

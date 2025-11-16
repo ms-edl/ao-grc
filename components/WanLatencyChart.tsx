@@ -120,6 +120,10 @@ interface WanLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
+  /**
+   * Hide the x-axis (for use with shared sticky axis)
+   */
+  hideXAxis?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -137,6 +141,7 @@ export default function WanLatencyChart({
   dragHandleProps,
   isDragging = false,
   metricType,
+  hideXAxis = false,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -705,6 +710,7 @@ export default function WanLatencyChart({
                 interval={0}
                 ticks={xTicks as any}
                 tick={renderTick as any}
+                hide={hideXAxis}
               />
               <YAxis
                 yAxisId="left"
@@ -1150,6 +1156,7 @@ export default function WanLatencyChart({
                     interval={0}
                     ticks={xTicks as any}
                     tick={renderTick as any}
+                    hide={hideXAxis}
                   />
                   <YAxis
                     yAxisId="left"

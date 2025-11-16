@@ -164,6 +164,10 @@ interface MultiDeviceLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
+  /**
+   * Hide the x-axis (for use with shared sticky axis)
+   */
+  hideXAxis?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -181,6 +185,7 @@ export default function MultiDeviceLatencyChart({
   dragHandleProps,
   isDragging = false,
   metricType,
+  hideXAxis = false,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -1343,6 +1348,7 @@ export default function MultiDeviceLatencyChart({
                     interval={0}
                     ticks={xTicks as any}
                     tick={renderXAxisTick as any}
+                    hide={hideXAxis}
                   />
                   <YAxis
                     tickMargin={8}
@@ -1899,6 +1905,7 @@ export default function MultiDeviceLatencyChart({
                 interval={0}
                 ticks={xTicks as any}
                 tick={renderXAxisTick as any}
+                hide={hideXAxis}
               />
               <YAxis
                 tickMargin={8}

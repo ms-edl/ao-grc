@@ -8,6 +8,7 @@ import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
 import { ChartItemConfig } from './types';
+import { SharedStickyXAxis } from '../components/SharedStickyXAxis';
 
 /**
  * CombinedLatencyPage
@@ -40,6 +41,12 @@ export default function CombinedLatencyPage() {
     const stored = localStorage.getItem('chartOrder');
     return stored ? JSON.parse(stored) : ['multidevice', 'wan'];
   });
+
+  // Shared margins for x-axis alignment
+  const sharedMargins = useMemo(() => ({
+    left: 50,   // Y-axis width
+    right: 32,  // Label spacing
+  }), []);
 
   // Available widgets for the sidebar
   const availableWidgets: AvailableWidget[] = useMemo(() => [
@@ -213,6 +220,7 @@ export default function CombinedLatencyPage() {
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
           metricType={metricType}
+          hideXAxis={true}
         />
       ),
     },
@@ -230,6 +238,7 @@ export default function CombinedLatencyPage() {
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
           metricType={metricType}
+          hideXAxis={true}
         />
       ),
     },
@@ -282,6 +291,18 @@ export default function CombinedLatencyPage() {
         maxSize={90}
         metricType={metricType}
         onMetricTypeChange={setMetricType}
+        stickyXAxisContent={
+          brushData.length > 0 ? (
+            <SharedStickyXAxis
+              data={brushData}
+              xKey="x"
+              startIndex={sharedRange.startIndex}
+              endIndex={sharedRange.endIndex}
+              marginLeft={sharedMargins.left}
+              marginRight={sharedMargins.right}
+            />
+          ) : null
+        }
         bottomContent={
           brushData.length > 0 ? (
             <SimplifiedBrush
