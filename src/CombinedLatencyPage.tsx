@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import MultiDeviceLatencyChart from '../components/MultiDeviceLatencyChart';
 import WanLatencyChart from '../components/WanLatencyChart';
-import { ResizableChartDrawer } from '../components/ui/resizable-chart-drawer';
+import { ResizableChartDrawer, MetricType } from '../components/ui/resizable-chart-drawer';
 import { AvailableWidget } from '../components/ui/chart-drawer';
 import { SyncedChartProvider } from '../components/SyncedChartContext';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
@@ -25,6 +25,9 @@ import { ChartItemConfig } from './types';
  */
 export default function CombinedLatencyPage() {
   const [isSharedDrawerOpen, setIsSharedDrawerOpen] = useState(false);
+  
+  // Metric type state for drawer charts (min/avg/max)
+  const [metricType, setMetricType] = useState<MetricType>('avg');
   
   // Track data lengths for global brush
   const [multiDeviceDataLength, setMultiDeviceDataLength] = useState(0);
@@ -209,6 +212,7 @@ export default function CombinedLatencyPage() {
           height={chartHeights.multidevice}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
+          metricType={metricType}
         />
       ),
     },
@@ -225,10 +229,11 @@ export default function CombinedLatencyPage() {
           height={chartHeights.wan}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
+          metricType={metricType}
         />
       ),
     },
-  }), [chartOrder, chartHeights, sharedRange, handleHeightChange]);
+  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, metricType]);
 
   // Render charts in order
   const orderedCharts = useMemo(() => {
@@ -275,6 +280,8 @@ export default function CombinedLatencyPage() {
         defaultSize={60}
         minSize={40}
         maxSize={90}
+        metricType={metricType}
+        onMetricTypeChange={setMetricType}
         bottomContent={
           brushData.length > 0 ? (
             <SimplifiedBrush

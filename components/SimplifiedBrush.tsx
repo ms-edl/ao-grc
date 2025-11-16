@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DragHandle } from "./ui/drag-handle";
 
 // ==========================
 // Types
@@ -35,36 +36,6 @@ export interface SimplifiedBrushProps {
   maxSelectionPoints: number;
   onChange: (range: { startIndex: number; endIndex: number }) => void;
 }
-
-// ==========================
-// Components
-// ==========================
-const HandleVisual: React.FC<{ hover?: boolean; active?: boolean; bandHovered?: boolean; anyHandleInteracted?: boolean }> = ({ hover = false, active = false, bandHovered = false, anyHandleInteracted = false }) => {
-  let backgroundColor = "rgb(var(--content-tertiary))";
-  let opacity = 0;
-  
-  if (hover || active) {
-    backgroundColor = "rgb(var(--content-primary))";
-    opacity = 1;
-  } else if (bandHovered || anyHandleInteracted) {
-    backgroundColor = "rgb(var(--content-tertiary))";
-    opacity = 1;
-  }
-  
-  return (
-    <div
-      className="transition-all duration-150"
-      style={{ 
-        width: 4,
-        height: 12,
-        borderRadius: 2,
-        backgroundColor,
-        boxShadow: (hover || active) ? "0 2px 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.2)",
-        opacity,
-      }}
-    />
-  );
-};
 
 const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' | 'right' }> = ({ label, visible, side }) => {
   const baseStyle: React.CSSProperties = {
@@ -237,7 +208,6 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
     if (!data.length || !trackWidth) return [];
     
     // Generate tick marks every ~6 hours (denser ticks)
-    const totalHours = data.length; // assuming hourly data
     const tickInterval = 6; // tick every 6 hours for denser appearance
     
     const ticks: number[] = [];
@@ -320,22 +290,26 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
         <div
           role="slider"
           aria-label="Start"
-          className="absolute flex items-center justify-center cursor-ew-resize"
+          className="absolute cursor-ew-resize flex items-center justify-center"
           style={{ 
-            left: handleLeft + 6,
+            left: handleLeft + 12,  // Center the 4px wide handle
             top: 24,
-            transform: `translateY(-50%) ${hoverLeft || dragging === "left" ? 'scale(1.2)' : 'scale(1)'}`,
-            transition: 'transform 150ms ease',
+            transform: `translateY(-50%)`,
             zIndex: 3,
-            width: 32,
-            height: 32,
-            padding: 4,
+            width: 24,
+            height: 24,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("left"); }}
           onMouseEnter={() => setHoverLeft(true)}
           onMouseLeave={() => setHoverLeft(false)}
         >
-          <HandleVisual hover={hoverLeft} active={dragging === "left"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
+          <DragHandle 
+            orientation="vertical"
+            size="sm"
+            isDragging={dragging === "left"}
+            isActive={hoverBand || anyHandleInteracted}
+            isHovered={hoverLeft}
+          />
           <TooltipBadge label={labelForIndex(localStart)} visible={tooltipsVisible} side="left" />
         </div>
 
@@ -343,22 +317,26 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
         <div
           role="slider"
           aria-label="End"
-          className="absolute flex items-center justify-center cursor-ew-resize"
+          className="absolute cursor-ew-resize flex items-center justify-center"
           style={{ 
-            left: handleRight - 6,
+            left: handleRight - 4,  // Center the 4px wide handle
             top: 24,
-            transform: `translateY(-50%) ${hoverRight || dragging === "right" ? 'scale(1.2)' : 'scale(1)'}`,
-            transition: 'transform 150ms ease',
+            transform: `translateY(-50%)`,
             zIndex: 3,
-            width: 32,
-            height: 32,
-            padding: 4,
+            width: 24,
+            height: 24,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("right"); }}
           onMouseEnter={() => setHoverRight(true)}
           onMouseLeave={() => setHoverRight(false)}
         >
-          <HandleVisual hover={hoverRight} active={dragging === "right"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
+          <DragHandle 
+            orientation="vertical"
+            size="sm"
+            isDragging={dragging === "right"}
+            isActive={hoverBand || anyHandleInteracted}
+            isHovered={hoverRight}
+          />
           <TooltipBadge label={labelForIndex(localEnd)} visible={tooltipsVisible} side="right" />
         </div>
       </div>

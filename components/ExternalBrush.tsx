@@ -361,16 +361,6 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
               />
             )}
           </svg>
-
-          {/* Dimming overlays for areas outside selection */}
-          <div
-            className="absolute top-0 bottom-0"
-            style={{ left: 0, width: `${selectionLeft + 1}px`, background: "rgb(var(--surface-tile)/0.7)", zIndex: 0, pointerEvents: "none" }}
-          />
-          <div
-            className="absolute top-0 bottom-0"
-            style={{ left: selectionRight, width: `${Math.max(0, previewPaths.w - selectionRight + 1)}px`, background: "rgb(var(--surface-tile)/0.7)", zIndex: 0, pointerEvents: "none" }}
-          />
         </div>
 
         {/* Selection band */}

@@ -153,6 +153,10 @@ interface MultiDeviceLatencyChartProps {
    */
   showDragHandle?: boolean;
   /**
+   * Metric type to display (min/avg/max)
+   */
+  metricType?: 'min' | 'avg' | 'max';
+  /**
    * Props from @dnd-kit for drag handle
    */
   dragHandleProps?: any;
@@ -176,6 +180,7 @@ export default function MultiDeviceLatencyChart({
   showDragHandle = false,
   dragHandleProps,
   isDragging = false,
+  metricType,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -192,6 +197,9 @@ export default function MultiDeviceLatencyChart({
   const [focusedDevice, setFocusedDevice] = useState<string | null>(null);
   const [preFocusHiddenDevices, setPreFocusHiddenDevices] = useState<Set<string>>(new Set());
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("avg");
+  
+  // Use metricType prop if provided, otherwise use internal state
+  const activeMetric = metricType ?? selectedMetric;
   
   // Legend hover with tooltip support
   const {
@@ -221,6 +229,10 @@ export default function MultiDeviceLatencyChart({
   
   // === Drawer state ===
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  // === Chart hover state (for sidebar live values) ===
+  const [hoveredChartTimestamp, setHoveredChartTimestamp] = useState<string | null>(null);
+  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
   
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -642,7 +654,7 @@ export default function MultiDeviceLatencyChart({
         let metricValue = v; // fallback to raw value
         const metrics = calculateMetrics(windowValues);
         if (metrics) {
-          metricValue = metrics[selectedMetric];
+          metricValue = metrics[activeMetric];
           // Always store min/max for hover preview (for all bands)
           out[`${id}__band_${code}__min`] = metrics.min;
           out[`${id}__band_${code}__max`] = metrics.max;
@@ -675,7 +687,7 @@ export default function MultiDeviceLatencyChart({
       }
       return out;
     });
-  }, [slicedData, deviceIds, deviceNames, deviceLatencyQuantiles, selectedMetric]);
+  }, [slicedData, deviceIds, deviceNames, deviceLatencyQuantiles, activeMetric]);
 
   // Calculate Y-axis domain from the FULL dataset (not just visible slice)
   // This prevents Y-axis jumps when changing the timeframe
@@ -855,10 +867,15 @@ export default function MultiDeviceLatencyChart({
     return { ticks: Array.from(ticks), dayTicks };
   }, []);
 
-  const { ticks: xTicks, dayTicks } = useMemo(
-    () => generateSmartTicks(slicedData, 0, Math.max(0, slicedData.length - 1), "x"),
-    [slicedData, generateSmartTicks]
-  );
+  // In drawer mode with sync, generate ticks from the original data indices (shared range)
+  // to ensure consistent x-axis across charts
+  const { ticks: xTicks, dayTicks } = useMemo(() => {
+    if (variant === 'drawer' && sharedRange) {
+      // Use full data array with shared range indices to ensure consistent tick generation
+      return generateSmartTicks(data, sharedRange.startIndex, sharedRange.endIndex, "x");
+    }
+    return generateSmartTicks(slicedData, 0, Math.max(0, slicedData.length - 1), "x");
+  }, [variant, sharedRange, data, slicedData, generateSmartTicks]);
 
   const CustomTick: React.FC<any> = ({ x, y, payload }) => {
     const date = toDate(payload.value);
@@ -949,7 +966,7 @@ export default function MultiDeviceLatencyChart({
           data={chartData}
           xKey="x"
           focusedItem={focusedDevice}
-          selectedMetric={selectedMetric}
+          selectedMetric={activeMetric}
           focusItems={focusItems}
           focusHeader={{ label: labelText, color }}
           showBand={true}
@@ -1017,19 +1034,34 @@ export default function MultiDeviceLatencyChart({
 
   // === Sync handlers ===
   const handleChartMouseMove = useCallback((state: any) => {
-    if (!enableSync || !syncContext) return;
-    
-    // Extract active tooltip index from recharts state
-    if (state && state.activeTooltipIndex !== undefined && chartData[state.activeTooltipIndex]) {
-      const timestamp = chartData[state.activeTooltipIndex].x;
-      syncContext.setSyncedTimestamp(timestamp);
+    if (enableSync && syncContext) {
+      // Extract active tooltip index from recharts state
+      if (state && state.activeTooltipIndex !== undefined && chartData[state.activeTooltipIndex]) {
+        const timestamp = chartData[state.activeTooltipIndex].x;
+        syncContext.setSyncedTimestamp(timestamp);
+      }
     }
-  }, [enableSync, syncContext, chartData]);
+    
+    // Track hover for sidebar updates (in drawer mode)
+    if (variant === 'drawer' && state && state.activeTooltipIndex !== undefined) {
+      setHoveredChartIndex(state.activeTooltipIndex);
+      if (chartData[state.activeTooltipIndex]) {
+        setHoveredChartTimestamp(chartData[state.activeTooltipIndex].x);
+      }
+    }
+  }, [enableSync, syncContext, chartData, variant]);
 
   const handleChartMouseLeave = useCallback(() => {
-    if (!enableSync || !syncContext) return;
-    syncContext.setSyncedTimestamp(null);
-  }, [enableSync, syncContext]);
+    if (enableSync && syncContext) {
+      syncContext.setSyncedTimestamp(null);
+    }
+    
+    // Clear hover state
+    if (variant === 'drawer') {
+      setHoveredChartIndex(null);
+      setHoveredChartTimestamp(null);
+    }
+  }, [enableSync, syncContext, variant]);
 
   // Calculate active index from synced timestamp
   const syncedActiveIndex = useMemo(() => {
@@ -1038,6 +1070,80 @@ export default function MultiDeviceLatencyChart({
     }
     return findClosestTimestampIndex(chartData, syncContext.syncedTimestamp);
   }, [enableSync, syncContext, syncContext?.syncedTimestamp, chartData]);
+
+  // Determine the effective index to use for sidebar (synced or local hover)
+  const effectiveHoverIndex = useMemo(() => {
+    if (variant !== 'drawer') return null;
+    // In drawer mode with sync enabled, use synced index if available, otherwise use local hover
+    if (enableSync && syncedActiveIndex !== null) {
+      return syncedActiveIndex;
+    }
+    return hoveredChartIndex;
+  }, [variant, enableSync, syncedActiveIndex, hoveredChartIndex]);
+
+  // Compute live values for sidebar when hovering
+  const computeLiveValues = useCallback(() => {
+    if (effectiveHoverIndex === null || effectiveHoverIndex < 0 || effectiveHoverIndex >= chartData.length) {
+      return undefined;
+    }
+    
+    const row = chartData[effectiveHoverIndex] as any;
+    const liveValues: Record<string, { value: string | number; band?: string }> = {};
+    
+    filteredDeviceIds.forEach((id) => {
+      // Find which band is active at this point
+      let activeValue: number | null = null;
+      let activeBand: string | undefined;
+      
+      for (const code of ["24", "5", "5m"] as BandCode[]) {
+        const bandValue = row[`${id}__band_${code}`];
+        if (typeof bandValue === 'number' && !isNaN(bandValue)) {
+          activeValue = bandValue;
+          activeBand = BAND_LABEL[code];
+          break;
+        }
+      }
+      
+      if (activeValue !== null) {
+        liveValues[id] = {
+          value: `${activeValue.toFixed(1)}ms`,
+          band: activeBand,
+        };
+      }
+    });
+    
+    return liveValues;
+  }, [effectiveHoverIndex, chartData, filteredDeviceIds]);
+
+  // Compute timestamp info for sidebar
+  const timestampInfo = useMemo(() => {
+    if (variant !== 'drawer') return undefined;
+    
+    // Use synced timestamp if available, otherwise use local hover
+    const effectiveTimestamp = (enableSync && syncContext?.syncedTimestamp) || hoveredChartTimestamp;
+    
+    if (effectiveTimestamp) {
+      // Show hovered/synced point
+      return {
+        type: 'point' as const,
+        currentDate: new Date(effectiveTimestamp),
+      };
+    } else if (slicedData.length > 0) {
+      // Show range
+      return {
+        type: 'range' as const,
+        startDate: new Date(slicedData[0].x),
+        endDate: new Date(slicedData[slicedData.length - 1].x),
+      };
+    }
+    
+    return undefined;
+  }, [variant, enableSync, syncContext, hoveredChartTimestamp, slicedData]);
+
+  const liveValues = useMemo(() => {
+    if (variant !== 'drawer' || effectiveHoverIndex === null) return undefined;
+    return computeLiveValues();
+  }, [variant, effectiveHoverIndex, computeLiveValues]);
 
   if (loading) {
     return (
@@ -1053,10 +1159,6 @@ export default function MultiDeviceLatencyChart({
   
   // Debug log
   console.log('MultiDeviceLatencyChart rendering, variant:', variant, 'deviceIds:', visibleDeviceIds.length);
-
-  const widthStyle = variant === 'drawer' 
-    ? { overflow: "visible", width: "100%", maxWidth: "100%" } 
-    : { overflow: "visible", width: "864px" };
 
   // Render drawer variant with new layout
   if (variant === 'drawer') {
@@ -1117,12 +1219,25 @@ export default function MultiDeviceLatencyChart({
       }));
     
     return (
-      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
+      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ height: `${chartHeight + 90}px` }}>
         <ChartDrawerContent
           sidebar={
             <ChartDrawerLegend
               dataItems={drawerLegendItems}
               sectionItems={drawerSectionItems}
+              timestamp={timestampInfo}
+              liveValues={liveValues}
+              focusedItem={focusedDevice}
+              onFocusItem={(id) => {
+                setPreFocusHiddenDevices(hiddenDevices);
+                setFocusedDevice(id);
+                cleanupLegendHover();
+              }}
+              onExitFocus={() => {
+                setFocusedDevice(null);
+                setHiddenDevices(preFocusHiddenDevices);
+                setHoveredDevice(null);
+              }}
               onToggleDataItem={(id) => {
                 setHoveredDevice(null);
                 setHiddenDevices((prev) => {
@@ -1169,12 +1284,13 @@ export default function MultiDeviceLatencyChart({
           <ChartDrawerHeader
             title="Client history"
             metricButton={<MetricButton label="Latency" />}
-            selectedMetrics={[selectedMetric]}
-            onMetricsChange={(metrics) => {
+            selectedMetrics={[activeMetric]}
+            onMetricsChange={metricType === undefined ? (metrics) => {
               if (metrics.length > 0) {
                 setSelectedMetric(metrics[metrics.length - 1] as MetricType);
               }
-            }}
+            } : undefined}
+            hideMetricToggles={metricType !== undefined}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
@@ -1207,14 +1323,14 @@ export default function MultiDeviceLatencyChart({
           />
           
           {/* Chart */}
-          <div className="flex-1 mt-6" style={{ overflow: "visible", position: "relative" }}>
-            <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
+          <div className="chart-drawer-chart-container">
+            <div className="chart-drawer-chart-inner" style={{ height: chartHeight }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart 
                   data={chartData} 
                   margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
-                  onMouseMove={enableSync ? handleChartMouseMove : undefined}
-                  onMouseLeave={enableSync ? handleChartMouseLeave : undefined}
+                  onMouseMove={handleChartMouseMove}
+                  onMouseLeave={handleChartMouseLeave}
                   syncId={enableSync ? "tooltipSync" : undefined}
                   syncMethod="index"
                 >
@@ -1238,13 +1354,9 @@ export default function MultiDeviceLatencyChart({
                     width={50}
                   />
                   <Tooltip 
-                    content={<CustomTooltip />} 
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
-                    offset={12}
-                    allowEscapeViewBox={{ x: false, y: true }}
+                    content={() => null}
+                    cursor={{ stroke: "rgb(var(--border-border-flat))" }}
                     isAnimationActive={false}
-                    wrapperStyle={{ zIndex: 1000 }}
-                    position={{ y: 0 }}
                   />
 
                   <defs>
@@ -1281,7 +1393,7 @@ export default function MultiDeviceLatencyChart({
                     if (focusedDevice) {
                       const deviceId = focusedDevice!;
                       const deviceColor = DEVICE_COLORS[deviceId] || "#999";
-                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      const previewMetrics = getPreviewMetrics(activeMetric);
                       
                       return renderPreviewLines({
                         itemId: deviceId,
@@ -1294,7 +1406,7 @@ export default function MultiDeviceLatencyChart({
                     if (hoveredDevice) {
                       const deviceId = hoveredDevice!;
                       const deviceColor = DEVICE_COLORS[deviceId] || "#999";
-                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      const previewMetrics = getPreviewMetrics(activeMetric);
                       
                       return renderPreviewLines({
                         itemId: deviceId,
@@ -1316,24 +1428,85 @@ export default function MultiDeviceLatencyChart({
                       const isBandHighlighted = hoveredBand === null || hoveredBand === code;
                       const isHighlighted = isDeviceHighlighted && isBandHighlighted;
                       
+                      // Use shared line styling utility for consistent tick indicators
+                      const lineStyle = useChartLineStyle({
+                        isHighlighted,
+                        color,
+                        chartData,
+                        dataKey: key,
+                        showBoundaryMarkers: true,
+                      });
+                      
                       return (
                         <Line
                           key={key}
                           type="monotone"
                           dataKey={key}
                           name={id}
-                          dot={false}
+                          dot={lineStyle.dot}
                           strokeWidth={2.0}
                           stroke={color}
                           strokeDasharray={BAND_DASH[code]}
                           isAnimationActive={false}
                           connectNulls={false}
-                          strokeOpacity={isHighlighted ? 1 : 0.15}
-                          activeDot={{ r: 4 }}
+                          strokeOpacity={lineStyle.strokeOpacity}
+                          activeDot={lineStyle.activeDot}
                         />
                       );
                     })
                   ))}
+
+                  {/* Reference lines with labels - rendered last to appear on top */}
+                  {(hoveredDevice || focusedDevice) && (() => {
+                    const deviceToShow = focusedDevice || hoveredDevice;
+                    if (!deviceToShow) return null;
+                    
+                    const deviceColor = DEVICE_COLORS[deviceToShow] || "#999";
+                    const previewMetrics: MetricType[] = [];
+                    
+                    // In focus mode, show all three metrics except the selected one
+                    if (focusedDevice) {
+                      // Show all metrics except the selected one
+                      previewMetrics.push(...getPreviewMetrics(activeMetric));
+                    } else {
+                      // When hovering, show the other two metrics (already excludes selected)
+                      previewMetrics.push(...getPreviewMetrics(activeMetric));
+                    }
+                    
+                    // Find the last non-null values for preview metrics (for labels)
+                    const previewValues: Record<MetricType, number | null> = {
+                      avg: null,
+                      min: null,
+                      max: null,
+                    };
+                    
+                    previewMetrics.forEach((metric) => {
+                      for (let i = chartData.length - 1; i >= 0; i--) {
+                        // Use preview values for all metrics (they're calculated from actual data)
+                        const rowValue = chartData[i]?.[`${deviceToShow}__preview_${metric}`];
+                        if (typeof rowValue === "number" && !Number.isNaN(rowValue)) {
+                          previewValues[metric] = rowValue;
+                          break;
+                        }
+                      }
+                    });
+                    
+                    // Add reference lines with labels for each preview metric
+                    return previewMetrics.map((metric) => {
+                      const value = previewValues[metric];
+                      if (value !== null) {
+                        return (
+                          <ReferenceLine
+                            key={`${deviceToShow}__label_${metric}`}
+                            y={value}
+                            stroke="transparent"
+                            label={<ChartReferenceLabel value={metric} color={deviceColor} />}
+                          />
+                        );
+                      }
+                      return null;
+                    }).filter(Boolean);
+                  })()}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1364,13 +1537,13 @@ export default function MultiDeviceLatencyChart({
 
   return (
     <>
-    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
+    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "864px" }}>
       <div className="p-5 flex flex-col items-start gap-3">
         {/* Title row with actions on the right */}
         <div className="relative w-full">
           <ChartHeader
             title="Client history"
-            metricButton={<MetricButton label="Latency" />}
+            metricButton={metricType === undefined ? <MetricButton label="Latency" /> : undefined}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
@@ -1646,9 +1819,8 @@ export default function MultiDeviceLatencyChart({
               const isHidden = hiddenBands.has(code);
               return (
                 <GraphLegendItem
-                  key={code}
+                  key={code} 
                   id={code}
-                  color="currentColor"
                   dashArray={BAND_DASH[code]}
                   label={BAND_LABEL[code]}
                   isHidden={isHidden}
@@ -1675,36 +1847,38 @@ export default function MultiDeviceLatencyChart({
             })}
           </div>
 
-          {/* Metric toggle */}
-          <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
-            {(["min", "avg", "max"] as MetricType[]).map((metric) => {
-              const isActive = selectedMetric === metric;
-              return (
-                <button
-                  key={metric}
-                  className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
-                  style={{ 
-                    paddingLeft: 12, 
-                    paddingRight: 12,
-                    fontSize: 13,
-                    fontFamily: 'inherit',
-                    height: '100%',
-                    borderRadius: 4,
-                    fontWeight: isActive ? 500 : 400,
-                    backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
-                    color: isActive ? undefined : 'rgb(var(--content-tertiary))'
-                  }}
-                  onClick={() => setSelectedMetric(metric)}
-                >
-                  {metric.charAt(0).toUpperCase() + metric.slice(1)}
-                </button>
-              );
-            })}
-          </div>
+          {/* Metric toggle - only show for default view (non-drawer) */}
+          {variant === 'default' && (
+            <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
+              {(["min", "avg", "max"] as MetricType[]).map((metric) => {
+                const isActive = activeMetric === metric;
+                return (
+                  <button
+                    key={metric}
+                    className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
+                    style={{ 
+                      paddingLeft: 12, 
+                      paddingRight: 12,
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                      height: '100%',
+                      borderRadius: 4,
+                      fontWeight: isActive ? 500 : 400,
+                      backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
+                      color: isActive ? undefined : 'rgb(var(--content-tertiary))'
+                    }}
+                    onClick={() => setSelectedMetric(metric)}
+                  >
+                    {metric.charAt(0).toUpperCase() + metric.slice(1)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-              <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
+              <div className="chart-content-main" style={{ overflow: "visible", position: "relative" }}>
         <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
@@ -1786,7 +1960,7 @@ export default function MultiDeviceLatencyChart({
                   const deviceColor = DEVICE_COLORS[focusedDevice] || "#999";
                   
                   // Show the other two metrics as preview lines (without dots)
-                  const previewMetrics = getPreviewMetrics(selectedMetric);
+                  const previewMetrics = getPreviewMetrics(activeMetric);
                   
                   // Note: The main line for the selected metric is rendered below via visibleDeviceIds
                   // which will use useChartLineStyle to show dots
@@ -1801,7 +1975,7 @@ export default function MultiDeviceLatencyChart({
                 // Normal hover mode: show the other two metrics with labels
                 if (hoveredDevice) {
                   const deviceColor = DEVICE_COLORS[hoveredDevice] || "#999";
-                  const previewMetrics = getPreviewMetrics(selectedMetric);
+                  const previewMetrics = getPreviewMetrics(activeMetric);
                   
                   // Find the last non-null values for preview metrics (for labels)
                   const previewValues: Record<MetricType, number | null> = {
@@ -1885,10 +2059,10 @@ export default function MultiDeviceLatencyChart({
                 // In focus mode, show all three metrics except the selected one
                 if (focusedDevice) {
                   // Show all metrics except the selected one
-                  previewMetrics.push(...getPreviewMetrics(selectedMetric));
+                  previewMetrics.push(...getPreviewMetrics(activeMetric));
                 } else {
                   // When hovering, show the other two metrics (already excludes selected)
-                  previewMetrics.push(...getPreviewMetrics(selectedMetric));
+                  previewMetrics.push(...getPreviewMetrics(activeMetric));
                 }
                 
                 // Find the last non-null values for preview metrics (for labels)
@@ -1945,7 +2119,7 @@ export default function MultiDeviceLatencyChart({
       </div>
 
       {/* Resize handle - only visible in drawer variant */}
-      {showResizeHandle && variant === 'drawer' && onHeightChange && (
+      {showResizeHandle && onHeightChange && (
         <ResizeHandleVertical onResize={onHeightChange} />
       )}
     </div>
@@ -1964,7 +2138,7 @@ export default function MultiDeviceLatencyChart({
             <div className="relative w-full">
               <ChartHeader
                 title="Client history"
-                metricButton={<MetricButton label="Latency" />}
+                metricButton={metricType === undefined ? <MetricButton label="Latency" /> : undefined}
                 showDragHandle={showDragHandle}
                 dragHandleProps={dragHandleProps}
                 isDragging={isDragging}
@@ -2054,9 +2228,8 @@ export default function MultiDeviceLatencyChart({
                   const isHidden = hiddenBands.has(code);
                   return (
                     <GraphLegendItem
-                      key={code}
+                      key={code} 
                       id={code}
-                      color="currentColor"
                       dashArray={BAND_DASH[code]}
                       label={BAND_LABEL[code]}
                       isHidden={isHidden}
@@ -2082,37 +2255,10 @@ export default function MultiDeviceLatencyChart({
                   );
                 })}
               </div>
-
-              {/* Metric toggle */}
-              <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
-                {(["min", "avg", "max"] as MetricType[]).map((metric) => {
-                  const isActive = selectedMetric === metric;
-                  return (
-                    <button
-                      key={metric}
-                      className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
-                      style={{ 
-                        paddingLeft: 12, 
-                        paddingRight: 12,
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        height: '100%',
-                        borderRadius: 4,
-                        fontWeight: isActive ? 500 : 400,
-                        backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
-                        color: isActive ? undefined : 'rgb(var(--content-tertiary))'
-                      }}
-                      onClick={() => setSelectedMetric(metric)}
-                    >
-                      {metric.charAt(0).toUpperCase() + metric.slice(1)}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
 
-          <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
+          <div className="chart-content-main" style={{ overflow: "visible", position: "relative" }}>
             <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
               <ResponsiveContainer width="100%" height="100%">
                 {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
@@ -2187,7 +2333,7 @@ export default function MultiDeviceLatencyChart({
                     if (focusedDevice) {
                       const deviceId = focusedDevice!;
                       const deviceColor = DEVICE_COLORS[deviceId] || "#999";
-                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      const previewMetrics = getPreviewMetrics(activeMetric);
                       
                       return renderPreviewLines({
                         itemId: deviceId,
@@ -2200,7 +2346,7 @@ export default function MultiDeviceLatencyChart({
                     if (hoveredDevice) {
                       const deviceId = hoveredDevice!;
                       const deviceColor = DEVICE_COLORS[deviceId] || "#999";
-                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      const previewMetrics = getPreviewMetrics(activeMetric);
                       
                       return renderPreviewLines({
                         itemId: deviceId,
@@ -2267,7 +2413,7 @@ export default function MultiDeviceLatencyChart({
           </div>
 
           {/* Resize handle - only visible in drawer variant */}
-          {showResizeHandle && variant === 'drawer' && onHeightChange && (
+          {showResizeHandle && onHeightChange && (
             <ResizeHandleVertical onResize={onHeightChange} />
           )}
         </div>

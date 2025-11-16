@@ -28,10 +28,35 @@ interface ChartDrawerLegendProps {
   onToggleSectionItem?: (id: string) => void;
   
   /**
+   * Focus mode handlers
+   */
+  onFocusItem?: (id: string) => void;
+  onExitFocus?: () => void;
+  focusedItem?: string | null;
+  
+  /**
    * Hover handlers
    */
   onMouseEnter?: (id: string) => void;
   onMouseLeave?: () => void;
+  
+  /**
+   * Timestamp range or specific hover timestamp
+   */
+  timestamp?: {
+    type: 'range' | 'point';
+    startDate?: Date;
+    endDate?: Date;
+    currentDate?: Date;
+  };
+  
+  /**
+   * Live values when hovering (overrides min/avg/max)
+   */
+  liveValues?: Record<string, {
+    value: string | number;
+    band?: string;  // for client chart
+  }>;
   
   className?: string;
 }
@@ -41,8 +66,9 @@ interface ChartDrawerLegendProps {
  * 
  * Features:
  * - Fixed width (256px)
+ * - Timestamp header showing range or hovered point
  * - Styled data items with 4px color indicator
- * - Min/Avg/Max meta row for each data item
+ * - Min/Avg/Max meta row OR live hover values
  * - Secondary section items (band types, etc.)
  */
 export function ChartDrawerLegend({
@@ -50,70 +76,158 @@ export function ChartDrawerLegend({
   sectionItems = [],
   onToggleDataItem,
   onToggleSectionItem,
+  onFocusItem,
+  onExitFocus,
+  focusedItem,
   onMouseEnter,
   onMouseLeave,
+  timestamp,
+  liveValues,
   className = '',
 }: ChartDrawerLegendProps) {
+  // Format timestamp for display
+  const formatTimestamp = () => {
+    if (!timestamp) return null;
+    
+    if (timestamp.type === 'point' && timestamp.currentDate) {
+      // Show specific point: "Aug 15, 14:00"
+      return timestamp.currentDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    } else if (timestamp.type === 'range' && timestamp.startDate && timestamp.endDate) {
+      // Show range: "Aug 13 - Aug 19"
+      const start = timestamp.startDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      const end = timestamp.endDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      return `${start} - ${end}`;
+    }
+    
+    return null;
+  };
+  
+  const timestampText = formatTimestamp();
+  const isHoveringPoint = timestamp?.type === 'point';
+  
   return (
-    <div 
-      className={`flex flex-col ${className}`}
-      style={{ width: '100%', maxWidth: '288px', flexShrink: 0 }}
-    >
-      {/* Data Items Section */}
-      {dataItems.length > 0 && (
-        <div 
-          className="flex flex-col gap-2" 
-          style={sectionItems.length > 0 ? { 
-            borderBottom: '1px solid rgb(var(--border-gradient-border))',
-            padding: '16px'
-          } : undefined}
-        >
-          {dataItems.map((item) => {
-            // Convert min/avg/max to flexible metaValues array
-            const metaValues = [];
-            if (item.min !== undefined) {
-              metaValues.push({ value: item.min, isActive: item.activeMetric === 'min' });
-            }
-            if (item.avg !== undefined) {
-              metaValues.push({ value: item.avg, isActive: item.activeMetric === 'avg' });
-            }
-            if (item.max !== undefined) {
-              metaValues.push({ value: item.max, isActive: item.activeMetric === 'max' });
-            }
-            
-            return (
-              <GraphLegendExtended
-                key={item.id}
-                color={item.color || '#999'}
-                label={item.label}
-                metaValues={metaValues}
-                isHidden={item.isHidden}
-                onClick={() => onToggleDataItem?.(item.id)}
-                onMouseEnter={() => onMouseEnter?.(item.id)}
-                onMouseLeave={() => onMouseLeave?.()}
-              />
-            );
-          })}
+    <div className={`sidebar-legend ${className}`}>
+      {/* Timestamp Header */}
+      {timestampText && (
+        <div className="sidebar-legend-timestamp">
+          <div className={`text-xs font-medium ${isHoveringPoint ? 'text-content-primary' : 'text-content-tertiary'}`}>
+            {timestampText}
+          </div>
         </div>
       )}
       
-      {/* Section Items (Band types, etc.) - Separate section */}
-      {sectionItems.length > 0 && (
-        <div className="flex flex-row flex-wrap gap-2" style={{ padding: '16px' }}>
-          {sectionItems.map((item) => (
-            <GraphLegendItem
-              key={item.id}
-              id={item.id}
-              dashArray={item.dashArray}
-              label={item.label}
-              isHidden={item.isHidden}
-              onClick={() => onToggleSectionItem?.(item.id)}
-              onMouseEnter={() => onMouseEnter?.(item.id)}
-              onMouseLeave={() => onMouseLeave?.()}
-            />
-          ))}
-        </div>
-      )}
+      {/* Scrollable Content Area */}
+      <div className="sidebar-legend-content">
+        {/* Data Items Section */}
+        {dataItems.length > 0 && (
+          <div className="sidebar-legend-section">
+            {dataItems.map((item) => {
+              // In focus mode, only show the focused item
+              if (focusedItem && item.id !== focusedItem) {
+                return null;
+              }
+              
+              // Check if we're in hover mode (liveValues exist)
+              const isHovering = liveValues !== undefined;
+              const liveValue = liveValues?.[item.id];
+              
+              let metaValues = [];
+              
+              if (isHovering) {
+                // In hover mode: show live value or N/A
+                if (liveValue) {
+                  metaValues = [
+                    { 
+                      value: liveValue.band 
+                        ? `${liveValue.value} · ${liveValue.band}` 
+                        : liveValue.value,
+                      isActive: true 
+                    }
+                  ];
+                } else {
+                  // No data at this point
+                  metaValues = [
+                    { value: 'N/A', isActive: true }
+                  ];
+                }
+              } else {
+                // Not hovering: show min/avg/max with active highlighting
+                if (item.min !== undefined) {
+                  metaValues.push({ value: item.min, isActive: item.activeMetric === 'min' });
+                }
+                if (item.avg !== undefined) {
+                  metaValues.push({ value: item.avg, isActive: item.activeMetric === 'avg' });
+                }
+                if (item.max !== undefined) {
+                  metaValues.push({ value: item.max, isActive: item.activeMetric === 'max' });
+                }
+              }
+              
+              const handleClick = (e: React.MouseEvent) => {
+                // Option/Alt + Click for focus mode
+                if (e.altKey && onFocusItem) {
+                  if (focusedItem === item.id) {
+                    // Exit focus if clicking the same item
+                    onExitFocus?.();
+                  } else {
+                    // Enter focus mode for this item
+                    onFocusItem(item.id);
+                  }
+                } else {
+                  // Regular click toggles visibility
+                  onToggleDataItem?.(item.id);
+                }
+              };
+              
+              return (
+                <GraphLegendExtended
+                  key={item.id}
+                  color={item.color || '#999'}
+                  label={item.label}
+                  metaValues={metaValues}
+                  isHidden={item.isHidden}
+                  isFocused={focusedItem === item.id}
+                  showFocusMode={true}
+                  onExitFocus={onExitFocus}
+                  onClick={handleClick}
+                  onMouseEnter={() => onMouseEnter?.(item.id)}
+                  onMouseLeave={() => onMouseLeave?.()}
+                />
+              );
+            })}
+          </div>
+        )}
+        
+        {/* Section Items (Band types, etc.) - Separate section */}
+        {sectionItems.length > 0 && (
+          <div className="sidebar-legend-section--secondary">
+            {sectionItems.map((item) => (
+              <GraphLegendItem
+                key={item.id}
+                id={item.id}
+                dashArray={item.dashArray}
+                label={item.label}
+                isHidden={item.isHidden}
+                onClick={() => onToggleSectionItem?.(item.id)}
+                onMouseEnter={() => onMouseEnter?.(item.id)}
+                onMouseLeave={() => onMouseLeave?.()}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

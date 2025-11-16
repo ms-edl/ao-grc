@@ -309,6 +309,73 @@ body {
   font-weight: var(--font-weight-medium);
 }
 
+.ui-sm-medium {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Chart title styling - consistent across all chart components */
+.chart-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: rgb(var(--content-primary));
+  flex-shrink: 0;
+}
+
+/* ===================================================================
+   Chart Header Component Styles
+   =================================================================== */
+
+/* Base chart header - used in standalone charts */
+.chart-header {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* Chart header left section - title and metric button */
+.chart-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* 12px */
+}
+
+/* Chart header right section - actions and drag handle */
+.chart-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* 8px */
+}
+
+/* Drawer variant chart header - used in drawer charts with additional controls */
+.chart-header--drawer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem; /* 16px */
+  padding-left: 4px;
+}
+
+/* Drawer header left section - title, metric button (flex-1 for truncation) */
+.chart-header--drawer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* 12px */
+  flex: 1;
+  min-width: 0; /* Allow truncation */
+}
+
+/* Drawer header right section - metric toggles and actions */
+.chart-header--drawer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* 8px */
+  flex-shrink: 0; /* Don't shrink controls */
+}
+
 /* Utility Classes */
 .border {
   border-width: 1px;
@@ -437,6 +504,235 @@ body {
 /* Aria States */
 [aria-selected="true"] {
   background-color: rgb(var(--surface-action-hover));
+}
+
+/* ===================================================================
+   Drawer & Sidebar Component Styles
+   =================================================================== */
+
+/* Drawer wrapper with width constraints */
+.drawer-wrapper {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Sidebar container */
+.sidebar-legend {
+  width: 100%;
+  max-width: 288px;
+  flex-shrink: 1; /* Allow shrinking so parent can scroll */
+  min-height: 0; /* Allow flex child to shrink below content size */
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Fill parent height */
+}
+
+/* Sidebar timestamp header - fixed at top */
+.sidebar-legend-timestamp {
+  flex-shrink: 0; /* Don't shrink */
+  padding: 16px 20px;
+  border-bottom: 1px solid rgb(var(--border-border-flat));
+  background-color: rgb(var(--surface-tile));
+  border-top-right-radius: 0.5rem; /* 8px - match parent's rounded-lg */
+}
+
+/* Scrollable content area - contains all sections */
+.sidebar-legend-content {
+  flex: 1; /* Take remaining space */
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* Allow shrinking */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-legend-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sidebar section wrapper - default styling for data items */
+.sidebar-legend-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* 8px */
+  padding: 16px;
+  flex-shrink: 0; /* Sections should not shrink, only scroll */
+  border-bottom: 1px solid rgb(var(--border-border-flat));
+}
+
+/* Remove border from last section */
+.sidebar-legend-section:last-child {
+  border-bottom: none;
+}
+
+/* Sidebar section with border (when followed by another section) */
+.sidebar-legend-section--bordered {
+  border-bottom: 1px solid rgb(var(--border-gradient-border));
+}
+
+/* Sidebar secondary section (for bands, connection types, etc.) */
+.sidebar-legend-section--secondary {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* 8px */
+  padding: 16px;
+  flex-shrink: 0; /* Sections should not shrink, only scroll */
+}
+
+/* Chart main content area - for default/standalone charts */
+.chart-content-main {
+  padding: 20px;
+  padding-bottom: 0;
+}
+
+/* Drawer main content area padding */
+.drawer-content-main {
+  padding: 16px;
+  border-right: 1px solid rgb(var(--border-border-flat));
+}
+
+/* Drawer sidebar area (scrollable) */
+.drawer-sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-left: 1px solid rgb(var(--border-gradient-border));
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  min-height: 0; /* Allow flex child to shrink below content size */
+  max-height: 100%; /* Constrain to parent height */
+}
+
+.drawer-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Drawer legend item */
+.drawer-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem; /* 12px */
+  cursor: pointer;
+  padding: 0.5rem; /* 8px */
+  border-radius: 0.5rem; /* 8px */
+  overflow: hidden;
+  transition: background-color 200ms ease-in-out;
+}
+
+.drawer-legend-item:hover {
+  background-color: rgb(var(--surface-action-hover));
+}
+
+.drawer-legend-item--hidden {
+  opacity: 0.4;
+}
+
+/* Chart drawer spacing utilities */
+.chart-drawer-header-margin {
+  margin-top: 1.5rem; /* 24px - consistent spacing after header */
+}
+
+/* Chart content container - flexible height with visible overflow */
+.chart-drawer-chart-container {
+  flex: 1;
+  margin-top: 1.5rem; /* 24px */
+  overflow: visible;
+  position: relative;
+}
+
+/* Chart inner wrapper - respects height prop */
+.chart-drawer-chart-inner {
+  overflow: visible;
+  position: relative;
+}
+
+/* Chart width constraints */
+.chart-width-default {
+  width: 864px;
+  overflow: visible;
+}
+
+.chart-width-drawer {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+/* ===================================================================
+   Chart Tags (for drawer header)
+   =================================================================== */
+
+/* Chart tag item */
+.chart-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* 8px */
+  flex-shrink: 0;
+  height: 24px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 8px;
+  background-color: rgb(var(--surface-action));
+  transition: opacity 200ms ease-in-out;
+}
+
+.chart-tag:hover {
+  opacity: 0.8;
+}
+
+/* Chart tag label */
+.chart-tag-label {
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  color: rgb(var(--content-primary));
+}
+
+/* Chart tag remove button */
+.chart-tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  transition: opacity 200ms ease-in-out;
+}
+
+.chart-tag-remove:hover {
+  opacity: 0.6;
+}
+
+/* ===================================================================
+   Drawer Add Widget Button
+   =================================================================== */
+
+/* Add widget button */
+.drawer-add-widget-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* 8px */
+  width: 256px;
+  height: 32px;
+  margin: 1.5rem auto 0; /* mt-6 mx-auto */
+  border-radius: 8px;
+  background-color: rgb(var(--surface-action));
+  transition: background-color 200ms ease-in-out;
+}
+
+.drawer-add-widget-button:hover {
+  background-color: rgb(var(--surface-action-hover));
+}
+
+/* Drawer button separator - vertical divider between header action buttons */
+.drawer-button-separator {
+  height: 16px;
+  width: 1px;
+  flex-shrink: 0;
+  background-color: rgb(var(--border-border-flat));
+  opacity: 1;
 }
 
 /* Vaul Drawer States - Right Side */

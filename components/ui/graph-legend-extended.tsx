@@ -1,5 +1,6 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
+import { Kbd } from './kbd';
 
 export interface GraphLegendExtendedMetaValue {
   value: string | number;
@@ -28,9 +29,24 @@ export interface GraphLegendExtendedProps {
   isHidden?: boolean;
   
   /**
+   * Whether the item is focused (isolate mode)
+   */
+  isFocused?: boolean;
+  
+  /**
+   * Whether to show focus mode tooltip
+   */
+  showFocusMode?: boolean;
+  
+  /**
+   * Handler to exit focus mode
+   */
+  onExitFocus?: () => void;
+  
+  /**
    * Click handler for toggling
    */
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
   
   /**
    * Hover enter handler
@@ -52,7 +68,6 @@ export interface GraphLegendExtendedProps {
  * - 4px vertical color bar indicator
  * - Label with truncation
  * - Flexible meta values row with active state highlighting
- * - Smooth animations with framer-motion
  * - Hover and click interactions
  */
 export function GraphLegendExtended({
@@ -60,34 +75,41 @@ export function GraphLegendExtended({
   label,
   metaValues,
   isHidden = false,
+  isFocused = false,
+  showFocusMode = false,
+  onExitFocus,
   onClick,
   onMouseEnter,
   onMouseLeave,
   className = '',
 }: GraphLegendExtendedProps) {
   const hasMetaValues = metaValues && metaValues.length > 0;
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
   
-  return (
-    <motion.div
-      layout
+  const content = (
+    <div
       className={`flex items-start gap-3 cursor-pointer py-2 px-2 rounded-lg overflow-hidden ${className}`}
       style={{
         opacity: isHidden ? 0.4 : 1,
+        backgroundColor: isFocused ? 'rgb(var(--surface-action-hover))' : 'transparent',
         transition: 'background-color 200ms ease-in-out',
       }}
       onMouseEnter={(e) => {
+        if (!isFocused) {
         e.currentTarget.style.backgroundColor = 'rgb(var(--surface-action-hover))';
+        }
         onMouseEnter?.(e);
       }}
       onMouseLeave={(e) => {
+        if (!isFocused) {
         e.currentTarget.style.backgroundColor = 'transparent';
+        }
         onMouseLeave?.(e);
       }}
-      onClick={onClick}
+      onClick={(e) => onClick?.(e)}
     >
       {/* 4px Color Indicator - matches content height */}
-      <motion.div
-        layout
+      <div
         className="flex-shrink-0"
         style={{
           width: '4px',
@@ -98,10 +120,9 @@ export function GraphLegendExtended({
       />
       
       {/* Content */}
-      <motion.div layout className="flex-1 flex flex-col gap-1 min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-1 min-w-0 overflow-hidden">
         {/* Label - truncate to 1 line */}
-        <motion.div
-          layout
+        <div
           className="text-content-primary font-medium overflow-hidden"
           style={{ 
             fontSize: '12px', 
@@ -112,25 +133,16 @@ export function GraphLegendExtended({
           }}
         >
           {label}
-        </motion.div>
+        </div>
         
-        {/* Meta values with active highlight and animation */}
-        <AnimatePresence initial={false}>
+        {/* Meta values with active highlight */}
           {!isHidden && hasMetaValues && (
-            <motion.div
-              initial={{ height: 0, opacity: 0, scale: 0.8, filter: 'blur(4px)' }}
-              animate={{ height: 'auto', opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ height: 0, opacity: 0, scale: 0.8, filter: 'blur(4px)' }}
-              transition={{ 
-                duration: 0.2,
-                ease: [0.4, 0, 0.2, 1]
-              }}
+          <div
               className="flex items-center gap-1 overflow-hidden"
               style={{ 
                 fontSize: '12px', 
                 lineHeight: '16px',
                 whiteSpace: 'nowrap',
-                originY: 0,
               }}
             >
               {metaValues.map((meta, index) => (
@@ -145,11 +157,53 @@ export function GraphLegendExtended({
                   </span>
                 </React.Fragment>
               ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </motion.div>
+          </div>
+        )}
+        
+        {/* Exit Focus Button - shown when focused */}
+        {isFocused && onExitFocus && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onExitFocus();
+            }}
+            className="flex items-center justify-center gap-2 px-3 rounded-lg bg-surface-tile hover:bg-surface-action transition-colors text-content-primary font-medium chart-gradient-border"
+            style={{ 
+              fontSize: '12px',
+              height: '28px',
+              marginTop: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Exit focus mode
+          </button>
+        )}
+      </div>
+    </div>
   );
+  
+  // Wrap with tooltip if focus mode is enabled and not already focused
+  if (showFocusMode && onExitFocus && !isFocused) {
+    return (
+      <TooltipProvider delayDuration={1500}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {content}
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <span className="inline-flex items-center gap-1.5">
+              <Kbd style={{ marginLeft: '-4px' }}>{isMac ? '⌥' : 'Alt'}</Kbd> + Click to focus
+            </span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+  );
+  }
+  
+  return content;
 }
 

@@ -67,7 +67,7 @@ export default function ChartDrawer({ isOpen, onClose, children }: ChartDrawerPr
             flexShrink: 0
           }}
         >
-          <h2 className="text-lg font-semibold text-content-primary">Client history</h2>
+          <h2 className="chart-title">Client history</h2>
           <button
             type="button"
             onClick={onClose}

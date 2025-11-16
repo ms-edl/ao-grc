@@ -4,18 +4,7 @@ import * as React from "react"
 import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
-
-// Simple drag handle icon (6 dots in 2 columns)
-const DragHandleIcon = () => (
-  <svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden>
-    <circle cx="2" cy="3" r="1.5" fill="currentColor" />
-    <circle cx="2" cy="8" r="1.5" fill="currentColor" />
-    <circle cx="2" cy="13" r="1.5" fill="currentColor" />
-    <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-    <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-    <circle cx="8" cy="13" r="1.5" fill="currentColor" />
-  </svg>
-)
+import { DragHandle } from "./drag-handle"
 
 const ResizablePanelGroup = ({
   className,
@@ -40,6 +29,9 @@ const ResizableHandle = ({
 }: React.ComponentProps<typeof ResizablePrimitive.PanelResizeHandle> & {
   withHandle?: boolean
 }) => {
+  const [isHovered, setIsHovered] = React.useState(false)
+  const [isDragging, setIsDragging] = React.useState(false)
+
   return (
     <ResizablePrimitive.PanelResizeHandle
       className={cn(
@@ -47,18 +39,20 @@ const ResizableHandle = ({
         className
       )}
       style={style}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseDown={() => setIsDragging(true)}
+      onMouseUp={() => setIsDragging(false)}
       {...props}
     >
     {withHandle && (
-      <div 
-        className="opacity-0 group-hover:opacity-100"
-        style={{
-          transition: 'opacity 200ms ease-in-out',
-          color: 'rgb(var(--content-primary))'
-        }}
-      >
-        <DragHandleIcon />
-      </div>
+      <DragHandle 
+        orientation="vertical"
+        size="md"
+        isDragging={isDragging}
+        isActive={false}
+        isHovered={isHovered}
+      />
     )}
     </ResizablePrimitive.PanelResizeHandle>
   )

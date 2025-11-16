@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 import { cn } from "@/lib/utils"
-import { XIcon } from "./icons"
+import { XIcon, Icon } from "./icons"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./resizable"
 import { TooltipButton } from "./tooltip-button"
 import { Kbd } from "./kbd"
@@ -14,6 +14,8 @@ export interface ChartTag {
   label: string
   onRemove?: (id: string) => void
 }
+
+export type MetricType = 'min' | 'avg' | 'max';
 
 interface ResizableChartDrawerProps {
   open: boolean
@@ -29,10 +31,13 @@ interface ResizableChartDrawerProps {
   defaultSize?: number  // Percentage of screen width (default: 50)
   minSize?: number      // Minimum percentage (default: 30)
   maxSize?: number      // Maximum percentage (default: 80)
+  minWidth?: number     // Minimum width in pixels (default: 1080)
   closeButtonTooltip?: React.ReactNode  // Tooltip content for the close button
   bottomContent?: React.ReactNode  // Optional fixed content at bottom (e.g., global brush)
   availableWidgets?: AvailableWidget[]  // Available widgets to show in sidebar
   onWidgetSelect?: (widgetId: string) => void  // Handler for widget selection
+  metricType?: MetricType  // Current metric type (min/avg/max)
+  onMetricTypeChange?: (type: MetricType) => void  // Handler for metric type change
 }
 
 /**
@@ -53,15 +58,34 @@ export function ResizableChartDrawer({
   defaultSize = 50,
   minSize = 30,
   maxSize = 80,
+  minWidth = 1080,
   closeButtonTooltip,
   bottomContent,
   availableWidgets = [],
   onWidgetSelect,
+  metricType,
+  onMetricTypeChange,
 }: ResizableChartDrawerProps) {
   // Sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isResizeHandleHovered, setIsResizeHandleHovered] = React.useState(false);
+
+  // Calculate minSize percentage based on minWidth pixels and viewport width
+  const [calculatedMinSize, setCalculatedMinSize] = React.useState(minSize);
+
+  React.useEffect(() => {
+    const updateMinSize = () => {
+      const viewportWidth = window.innerWidth;
+      const minSizePercentage = (minWidth / viewportWidth) * 100;
+      // Use the larger of the provided minSize or calculated minSize
+      setCalculatedMinSize(Math.max(minSize, minSizePercentage));
+    };
+
+    updateMinSize();
+    window.addEventListener('resize', updateMinSize);
+    return () => window.removeEventListener('resize', updateMinSize);
+  }, [minWidth, minSize]);
 
   // Default tooltip with Kbd component
   const defaultTooltip = (
@@ -193,7 +217,7 @@ export function ResizableChartDrawer({
             {/* Drawer Panel - controls the drawer width */}
             <ResizablePanel 
               defaultSize={defaultSize}
-              minSize={minSize}
+              minSize={calculatedMinSize}
               maxSize={maxSize}
               className="pointer-events-auto"
               id="chart-drawer"
@@ -206,16 +230,10 @@ export function ResizableChartDrawer({
                 )}
                 style={{
                   borderRadius: '16px',
-                  backgroundImage: `
-                    linear-gradient(rgb(var(--surface-section)), rgb(var(--surface-section))),
-                    linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
-                  `,
-                  backgroundOrigin: 'border-box',
-                  backgroundClip: 'padding-box, border-box',
+                  border: isResizeHandleHovered 
+                    ? '1px solid rgb(var(--content-tertiary))'
+                    : '1px solid rgb(var(--border-border-flat))',
                   overflow: 'hidden',
-                  boxShadow: isResizeHandleHovered 
-                    ? 'inset 0 0 0 2px rgb(var(--border-border-flat))'
-                    : 'inset 0 0 0 1px rgb(var(--border-border-flat))',
                 }}
               >
                 {/* Header */}
@@ -262,8 +280,7 @@ export function ResizableChartDrawer({
                       {/* Device Info */}
                       <div className="flex-1 min-w-0">
                         <DrawerPrimitive.Title 
-                          className="font-semibold text-content-primary truncate" 
-                          style={{ fontSize: '14px', lineHeight: '20px' }}
+                          className="chart-title truncate"
                         >
                           {deviceName}
                         </DrawerPrimitive.Title>
@@ -283,7 +300,7 @@ export function ResizableChartDrawer({
                     </div>
                   ) : (
                     // Legacy title with icon
-                    <DrawerPrimitive.Title className="flex items-center gap-2 font-semibold text-content-primary" style={{ fontSize: '1.25rem' }}>
+                    <DrawerPrimitive.Title className="chart-title flex items-center gap-2">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path opacity="0.7" d="M7.24235 11.0828C7.69086 9.40921 9.41117 7.6889 11.0848 7.24039L21.5188 4.44419C23.1924 3.99568 24.1855 4.98882 23.737 6.66242L20.9408 17.0964C20.4923 18.77 18.772 20.4903 17.0984 20.9388L6.66437 23.735C4.99077 24.1835 3.99764 23.1904 4.44614 21.5168L7.24235 11.0828Z" fill="rgb(var(--content-secondary))"/>
                         <path d="M3.05936 6.89971C3.50787 5.22611 5.22818 3.5058 6.90178 3.05729L17.3358 0.261088C19.0094 -0.187419 20.0025 0.805715 19.554 2.47932L16.7578 12.9133C16.3093 14.5869 14.589 16.3072 12.9154 16.7557L2.48139 19.5519C0.807789 20.0004 -0.185349 19.0073 0.263159 17.3337L3.05936 6.89971Z" fill="rgb(var(--content-secondary))"/>
@@ -292,10 +309,41 @@ export function ResizableChartDrawer({
                     </DrawerPrimitive.Title>
                   )}
 
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                    {/* Saved views button */}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+                    >
+                      <Icon name="layout" size={16} />
+                      <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
+                        Saved views
+                      </span>
+                    </button>
+
+                    {/* Separator */}
+                    <div className="drawer-button-separator" />
+
+                    {/* Last 14 days button */}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+                    >
+                      <Icon name="clock" size={16} />
+                      <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
+                        Last 14 days
+                      </span>
+                    </button>
+
+                    {/* Separator */}
+                    <div className="drawer-button-separator" />
+
+                    {/* Close button */}
                   <TooltipButton
                     type="button"
                     onClick={() => onOpenChange(false)}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary flex-shrink-0 ml-4"
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary flex-shrink-0"
                     aria-label="Close drawer"
                     tooltip={closeButtonTooltip ?? defaultTooltip}
                     tooltipSide="left"
@@ -304,6 +352,7 @@ export function ResizableChartDrawer({
                   >
                     <XIcon className="h-4 w-4" />
                   </TooltipButton>
+                  </div>
                 </div>
 
                 {/* Chart Tags Section */}
@@ -340,34 +389,17 @@ export function ResizableChartDrawer({
                       {chartTags?.map((tag) => (
                         <div
                           key={tag.id}
-                          className="flex items-center gap-2 flex-shrink-0 transition-opacity hover:opacity-80"
-                          style={{
-                            height: '24px',
-                            paddingLeft: '8px',
-                            paddingRight: '8px',
-                            borderRadius: '8px',
-                            backgroundImage: `
-                              linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
-                              linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
-                            `,
-                            backgroundOrigin: 'border-box',
-                            backgroundClip: 'padding-box, border-box',
-                            border: '1px solid transparent',
-                          }}
+                          className="chart-tag"
                         >
-                          <span 
-                            className="text-content-primary"
-                            style={{ fontSize: '12px', lineHeight: '16px', whiteSpace: 'nowrap' }}
-                          >
+                          <span className="chart-tag-label">
                             {tag.label}
                           </span>
                           {tag.onRemove && (
                             <button
                               type="button"
                               onClick={() => tag.onRemove?.(tag.id)}
-                              className="flex items-center justify-center hover:opacity-60 transition-opacity"
+                              className="chart-tag-remove"
                               aria-label={`Remove ${tag.label}`}
-                              style={{ width: '12px', height: '12px' }}
                             >
                               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                 <path d="M9 3L3 9M3 3L9 9" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>
@@ -376,32 +408,45 @@ export function ResizableChartDrawer({
                           )}
                         </div>
                       ))}
+
+                      {/* Metric Type Toggle (Min/Avg/Max) - Right side */}
+                      {metricType && onMetricTypeChange && (
+                        <div className="ml-auto inline-flex items-center gap-1">
+                          {(['min', 'avg', 'max'] as MetricType[]).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => onMetricTypeChange(type)}
+                              className="transition-opacity hover:opacity-80"
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                lineHeight: '16px',
+                                fontWeight: 500,
+                                color: metricType === type ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
+                                backgroundColor: metricType === type ? 'rgb(var(--surface-action-hover))' : 'transparent',
+                              }}
+                            >
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : null}
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
-                  <div className="p-6 pb-[120px]">
+                  <div className="drawer-wrapper p-6 pb-[120px]">
                     {children}
                     
                     {/* Add Widget Button */}
                     <button
                       type="button"
                       onClick={handleAddChartClick}
-                      className="flex items-center justify-center gap-2 mt-6 mx-auto transition-opacity hover:opacity-80"
-                      style={{
-                        width: '256px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        backgroundImage: `
-                          linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
-                          linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
-                        `,
-                        backgroundOrigin: 'border-box',
-                        backgroundClip: 'padding-box, border-box',
-                        border: '1px solid transparent',
-                      }}
+                      className="drawer-add-widget-button"
                       aria-label="Add widget"
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

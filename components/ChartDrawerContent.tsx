@@ -29,21 +29,33 @@ interface ChartDrawerContentProps {
  * 
  * Layout:
  * - Main column: 100% width (header + chart)
- * - Sidebar column: 256px width (legend)
+ * - Sidebar column: 288px width (legend)
  */
 export function ChartDrawerContent({
   children,
   sidebar,
-  mainPadding = '24px',
-  sidebarPadding = '16px',
+  mainPadding,
+  sidebarPadding,
   className = '',
 }: ChartDrawerContentProps) {
+  // Use semantic classes by default, allow override with props
+  const mainClass = mainPadding === undefined ? 'drawer-content-main' : '';
+  const mainStyle = mainPadding !== undefined ? { padding: mainPadding, minWidth: 0 } : { minWidth: 0 };
+  
+  const sidebarClass = sidebarPadding === undefined ? 'drawer-sidebar' : 'flex-shrink-0 border-l border-gradient-border overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden';
+  const sidebarStyle = sidebarPadding !== undefined ? {
+    width: '288px',
+    padding: sidebarPadding,
+    scrollbarWidth: 'none' as const,
+    msOverflowStyle: 'none' as const,
+  } : undefined;
+  
   return (
     <div className={`flex w-full h-full ${className}`} style={{ minHeight: 0, overflow: 'hidden' }}>
       {/* Main Content Area */}
       <div 
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ padding: mainPadding, minWidth: 0 }}
+        className={`flex-1 flex flex-col overflow-hidden ${mainClass}`}
+        style={mainStyle}
       >
         {children}
       </div>
@@ -51,13 +63,8 @@ export function ChartDrawerContent({
       {/* Sidebar (Legend) */}
       {sidebar && (
         <div
-          className="flex-shrink-0 border-l border-gradient-border overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden"
-          style={{
-            width: '288px',
-            padding: sidebarPadding,
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
+          className={sidebarClass}
+          style={sidebarStyle}
         >
           {sidebar}
         </div>

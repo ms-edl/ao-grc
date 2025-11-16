@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Icon } from './ui/icons';
 import { TooltipButton } from './ui/tooltip-button';
-import { DragHandleButton } from './ui/drag-handle';
+import { DragHandle } from './ui/drag-handle';
 
 // Re-export AoBtnFilter for convenience
 export { AoBtnFilter } from './ui/ao-btn-filter';
@@ -30,23 +30,36 @@ export default function ChartHeader({
   dragHandleProps,
   isDragging = false
 }: ChartHeaderProps) {
+  const [isHandleHovered, setIsHandleHovered] = useState(false);
+
   return (
-    <div className="w-full flex items-top justify-between relative">
-      <div className="flex items-center gap-3">
-        <h3 className="text-base font-semibold text-content-primary">{title}</h3>
+    <div className="chart-header">
+      <div className="chart-header-left">
+        <h3 className="chart-title">{title}</h3>
         {metricButton}
       </div>
       
       {/* Actions container (right-aligned) */}
-      <div className="flex items-center gap-2">
+      <div className="chart-header-right">
         {actions}
         
         {/* Drag handle - only shown when enabled */}
         {showDragHandle && (
-          <DragHandleButton
-            isDragging={isDragging}
+          <div
             {...dragHandleProps}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-lg transition-opacity duration-150"
+            onMouseEnter={() => setIsHandleHovered(true)}
+            onMouseLeave={() => setIsHandleHovered(false)}
+            title="Drag to reorder"
+          >
+              <DragHandle
+                orientation="vertical"
+                size="md"
+            isDragging={isDragging}
+                isActive={false}
+                isHovered={isHandleHovered}
           />
+            </div>
         )}
       </div>
     </div>
@@ -100,7 +113,7 @@ export function MaximizeButton({ onClick }: MaximizeButtonProps) {
  * FilterDivider - Visual divider between action groups
  */
 export function FilterDivider() {
-  return <div className="w-px h-5" style={{ backgroundColor: 'rgb(var(--border-border-flat))' }} />;
+  return <div className="drawer-button-separator" />;
 }
 
 /**

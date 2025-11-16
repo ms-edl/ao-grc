@@ -204,8 +204,7 @@ export function ChartDrawer({
                 {/* Device Info */}
                 <div className="flex-1 min-w-0">
                   <DrawerPrimitive.Title 
-                    className="font-semibold text-content-primary truncate" 
-                    style={{ fontSize: '14px', lineHeight: '20px' }}
+                    className="chart-title truncate"
                   >
                     {deviceName}
                   </DrawerPrimitive.Title>
@@ -225,7 +224,7 @@ export function ChartDrawer({
               </div>
             ) : (
               // Legacy title without icon
-              <DrawerPrimitive.Title className="text-lg font-semibold text-content-primary">
+              <DrawerPrimitive.Title className="chart-title">
                 {title}
               </DrawerPrimitive.Title>
             )}
@@ -277,34 +276,17 @@ export function ChartDrawer({
                 {chartTags?.map((tag) => (
                   <div
                     key={tag.id}
-                    className="flex items-center gap-2 flex-shrink-0 transition-opacity hover:opacity-80"
-                    style={{
-                      height: '24px',
-                      paddingLeft: '8px',
-                      paddingRight: '8px',
-                      borderRadius: '8px',
-                      backgroundImage: `
-                        linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
-                        linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
-                      `,
-                      backgroundOrigin: 'border-box',
-                      backgroundClip: 'padding-box, border-box',
-                      border: '1px solid transparent',
-                    }}
+                    className="chart-tag"
                   >
-                    <span 
-                      className="text-content-primary"
-                      style={{ fontSize: '12px', lineHeight: '16px', whiteSpace: 'nowrap' }}
-                    >
+                    <span className="chart-tag-label">
                       {tag.label}
                     </span>
                     {tag.onRemove && (
                       <button
                         type="button"
                         onClick={() => tag.onRemove?.(tag.id)}
-                        className="flex items-center justify-center hover:opacity-60 transition-opacity"
+                        className="chart-tag-remove"
                         aria-label={`Remove ${tag.label}`}
-                        style={{ width: '12px', height: '12px' }}
                       >
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                           <path d="M9 3L3 9M3 3L9 9" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>

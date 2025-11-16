@@ -54,7 +54,7 @@ export default function ChartCard({
       </div>
 
       {/* Chart container with padding */}
-      <div className="p-5">
+      <div className="chart-content-main">
         {children}
       </div>
 

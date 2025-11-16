@@ -15,9 +15,6 @@ import { ResizeHandleVertical } from "./ui/resize-handle-vertical";
 import ChartCard from "./ChartCard";
 import { useTimeAxis, toDate } from "./TimeAxis";
 import ChartHeader, { MetricButton, MaximizeButton } from "./ChartHeader";
-import ChartDrawerHeader from "./ChartDrawerHeader";
-import { ChartDrawerContent } from "./ChartDrawerContent";
-import { ChartDrawerLegend, DrawerLegendItem } from "./ChartDrawerLegend";
 import { useChartTheme } from "./hooks/useChartTheme";
 import { useChartLegendHover } from "./hooks/useChartLegendHover";
 import { GraphLegend } from "./ui/graph-legend";
@@ -28,7 +25,6 @@ import { calculateYAxisDomain, calculateNiceTicks } from "./utils/calculateYAxis
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
-import { Icon } from "./ui/icons";
 
 type Row = {
   x: string; // ISO timestamp
@@ -109,10 +105,6 @@ interface WanLatencyChartProps {
    */
   showDragHandle?: boolean;
   /**
-   * Metric type to display (min/avg/max)
-   */
-  metricType?: 'min' | 'avg' | 'max';
-  /**
    * Props from @dnd-kit for drag handle
    */
   dragHandleProps?: any;
@@ -136,7 +128,6 @@ export default function WanLatencyChart({
   showDragHandle = false,
   dragHandleProps,
   isDragging = false,
-  metricType,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -153,9 +144,6 @@ export default function WanLatencyChart({
   const [preFocusHiddenMetrics, setPreFocusHiddenMetrics] = useState<Set<MetricKey>>(new Set());
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("avg");
   
-  // Use metricType prop if provided, otherwise use internal state
-  const activeMetric = metricType ?? selectedMetric;
-  
   // Legend hover with tooltip support for focus mode
   const {
     hoveredItem: hoveredLegendMetric,
@@ -169,10 +157,6 @@ export default function WanLatencyChart({
   
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  
-  // === Chart hover state (for sidebar live values) ===
-  const [hoveredChartTimestamp, setHoveredChartTimestamp] = useState<string | null>(null);
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
 
   // === Tooltip sync state ===
   const syncContext = enableSync ? useSyncedChart() : undefined;
@@ -363,7 +347,7 @@ export default function WanLatencyChart({
     }
 
     return baseData;
-  }, [slicedData, hoveredMetric, activeMetric]);
+  }, [slicedData, hoveredMetric, selectedMetric]);
 
 
   const colors = METRIC_COLORS[theme];
@@ -384,12 +368,11 @@ export default function WanLatencyChart({
   const hasVisibleMetrics = visibleMetrics.length > 0;
 
   // Use shared time axis hook
-  // In drawer mode with sync, use sharedRange to ensure consistent x-axis across charts
   const { ticks: xTicks, renderTick } = useTimeAxis({
     data,
     xKey: "x",
-    startIndex: variant === 'drawer' && sharedRange ? sharedRange.startIndex : range.left,
-    endIndex: variant === 'drawer' && sharedRange ? sharedRange.endIndex : range.right,
+    startIndex: range.left,
+    endIndex: range.right,
   });
 
   const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
@@ -442,7 +425,7 @@ export default function WanLatencyChart({
           data={aggregatedData}
           xKey="x"
           focusedItem={focusedMetric}
-          selectedMetric={activeMetric}
+          selectedMetric={selectedMetric}
           focusItems={focusItems}
           focusHeader={{ label: labelText, color }}
         />
@@ -453,7 +436,7 @@ export default function WanLatencyChart({
         {
           id: "latency_ms",
           label: "Latency",
-          value: rowAtLabel[`latency_ms_${activeMetric}`] || null,
+          value: rowAtLabel[`latency_ms_${selectedMetric}`] || null,
           color: colors.latency,
           unit: "ms",
           isVisible: !hiddenMetrics.has("latency_ms"),
@@ -461,7 +444,7 @@ export default function WanLatencyChart({
         {
           id: "jitter_ms",
           label: "Jitter",
-          value: rowAtLabel[`jitter_ms_${activeMetric}`] || null,
+          value: rowAtLabel[`jitter_ms_${selectedMetric}`] || null,
           color: colors.jitter,
           unit: "ms",
           isVisible: !hiddenMetrics.has("jitter_ms"),
@@ -469,7 +452,7 @@ export default function WanLatencyChart({
         {
           id: "packet_loss_percent",
           label: "Packet Loss",
-          value: rowAtLabel[`packet_loss_percent_${activeMetric}`] || null,
+          value: rowAtLabel[`packet_loss_percent_${selectedMetric}`] || null,
           color: colors.packetLoss,
           unit: "%",
           isVisible: !hiddenMetrics.has("packet_loss_percent"),
@@ -491,34 +474,19 @@ export default function WanLatencyChart({
 
   // === Sync handlers ===
   const handleChartMouseMove = useCallback((state: any) => {
-    if (enableSync && syncContext) {
+    if (!enableSync || !syncContext) return;
+    
     // Extract active tooltip index from recharts state
     if (state && state.activeTooltipIndex !== undefined && aggregatedData[state.activeTooltipIndex]) {
       const timestamp = aggregatedData[state.activeTooltipIndex].x;
       syncContext.setSyncedTimestamp(timestamp);
     }
-    }
-    
-    // Track hover for sidebar updates (in drawer mode)
-    if (variant === 'drawer' && state && state.activeTooltipIndex !== undefined) {
-      setHoveredChartIndex(state.activeTooltipIndex);
-      if (aggregatedData[state.activeTooltipIndex]) {
-        setHoveredChartTimestamp(aggregatedData[state.activeTooltipIndex].x);
-      }
-    }
-  }, [enableSync, syncContext, aggregatedData, variant]);
+  }, [enableSync, syncContext, aggregatedData]);
 
   const handleChartMouseLeave = useCallback(() => {
-    if (enableSync && syncContext) {
+    if (!enableSync || !syncContext) return;
     syncContext.setSyncedTimestamp(null);
-    }
-    
-    // Clear hover state
-    if (variant === 'drawer') {
-      setHoveredChartIndex(null);
-      setHoveredChartTimestamp(null);
-    }
-  }, [enableSync, syncContext, variant]);
+  }, [enableSync, syncContext]);
 
   // Calculate active index from synced timestamp
   const syncedActiveIndex = useMemo(() => {
@@ -527,69 +495,6 @@ export default function WanLatencyChart({
     }
     return findClosestTimestampIndex(aggregatedData, syncContext.syncedTimestamp);
   }, [enableSync, syncContext, syncContext?.syncedTimestamp, aggregatedData]);
-
-  // Determine the effective index to use for sidebar (synced or local hover)
-  const effectiveHoverIndex = useMemo(() => {
-    if (variant !== 'drawer') return null;
-    // In drawer mode with sync enabled, use synced index if available, otherwise use local hover
-    if (enableSync && syncedActiveIndex !== null) {
-      return syncedActiveIndex;
-    }
-    return hoveredChartIndex;
-  }, [variant, enableSync, syncedActiveIndex, hoveredChartIndex]);
-
-  // Compute live values for sidebar when hovering
-  const computeLiveValues = useCallback(() => {
-    if (effectiveHoverIndex === null || effectiveHoverIndex < 0 || effectiveHoverIndex >= aggregatedData.length) {
-      return undefined;
-    }
-    
-    const row = aggregatedData[effectiveHoverIndex] as any;
-    const liveValues: Record<string, { value: string | number }> = {};
-    
-    const metricsToCalculate: MetricKey[] = ['latency_ms', 'jitter_ms', 'packet_loss_percent'];
-    metricsToCalculate.forEach((metricKey) => {
-      const value = row[`${metricKey}_${activeMetric}`];
-      if (typeof value === 'number' && !isNaN(value)) {
-        const unit = metricKey === 'packet_loss_percent' ? '%' : 'ms';
-        liveValues[metricKey] = {
-          value: `${value.toFixed(1)}${unit}`,
-        };
-      }
-    });
-    
-    return liveValues;
-  }, [effectiveHoverIndex, aggregatedData, activeMetric]);
-
-  // Compute timestamp info for sidebar
-  const timestampInfo = useMemo(() => {
-    if (variant !== 'drawer') return undefined;
-    
-    // Use synced timestamp if available, otherwise use local hover
-    const effectiveTimestamp = (enableSync && syncContext?.syncedTimestamp) || hoveredChartTimestamp;
-    
-    if (effectiveTimestamp) {
-      // Show hovered/synced point
-      return {
-        type: 'point' as const,
-        currentDate: new Date(effectiveTimestamp),
-      };
-    } else if (slicedData.length > 0) {
-      // Show range
-      return {
-        type: 'range' as const,
-        startDate: new Date(slicedData[0].x),
-        endDate: new Date(slicedData[slicedData.length - 1].x),
-      };
-    }
-    
-    return undefined;
-  }, [variant, enableSync, syncContext, hoveredChartTimestamp, slicedData]);
-
-  const liveValues = useMemo(() => {
-    if (variant !== 'drawer' || effectiveHoverIndex === null) return undefined;
-    return computeLiveValues();
-  }, [variant, effectiveHoverIndex, computeLiveValues]);
 
   const renderMetricLegend = () => {
     const legendItems = (["latency_ms", "jitter_ms", "packet_loss_percent"] as MetricKey[]).map((key) => ({
@@ -643,34 +548,32 @@ export default function WanLatencyChart({
           showFocusMode={true}
         />
 
-      {/* Metric toggle - only show for default view (non-drawer) */}
-      {variant === 'default' && (
-        <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
+      {/* Metric toggle */}
+      <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
           {(["min", "avg", "max"] as MetricType[]).map((metric) => {
-            const isActive = activeMetric === metric;
-            return (
-              <button
-                key={metric}
-                className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
-                style={{ 
-                  paddingLeft: 12, 
-                  paddingRight: 12,
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  height: '100%',
-                  borderRadius: 4,
-                  fontWeight: isActive ? 500 : 400,
-                  backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
-                  color: isActive ? undefined : 'rgb(var(--content-tertiary))'
-                }}
-                onClick={() => setSelectedMetric(metric)}
-              >
-                {metric.charAt(0).toUpperCase() + metric.slice(1)}
-              </button>
-            );
-          })}
-        </div>
-      )}
+          const isActive = selectedMetric === metric;
+          return (
+            <button
+              key={metric}
+              className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
+              style={{ 
+                paddingLeft: 12, 
+                paddingRight: 12,
+                fontSize: 13,
+                fontFamily: 'inherit',
+                height: '100%',
+                borderRadius: 4,
+                fontWeight: isActive ? 500 : 400,
+                backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
+                color: isActive ? undefined : 'rgb(var(--content-tertiary))'
+              }}
+              onClick={() => setSelectedMetric(metric)}
+            >
+              {metric.charAt(0).toUpperCase() + metric.slice(1)}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
   };
@@ -748,12 +651,12 @@ export default function WanLatencyChart({
                   isHighlighted: true,
                   color: metricColor,
                   chartData: aggregatedData,
-                  dataKey: `${focusedMetric}_${activeMetric}`,
+                  dataKey: `${focusedMetric}_${selectedMetric}`,
                   showBoundaryMarkers: true,
                 });
                 
                 // Get preview metrics (the other two)
-                const previewMetrics = getPreviewMetrics(activeMetric);
+                const previewMetrics = getPreviewMetrics(selectedMetric);
                 
                 return (
                   <>
@@ -761,7 +664,7 @@ export default function WanLatencyChart({
                     <Line
                       yAxisId={yAxisId}
                       type="monotone"
-                      dataKey={`${focusedMetric}_${activeMetric}`}
+                      dataKey={`${focusedMetric}_${selectedMetric}`}
                       stroke={metricColor}
                       strokeWidth={2.0}
                       dot={lineStyle.dot}
@@ -787,7 +690,7 @@ export default function WanLatencyChart({
               {!focusedMetric && hoveredMetric && (() => {
                 const metricColor = colors[hoveredMetric === "latency_ms" ? "latency" : hoveredMetric === "jitter_ms" ? "jitter" : "packetLoss"];
                 const yAxisId = hoveredMetric === "packet_loss_percent" ? "right" : "left";
-                const previewMetrics = getPreviewMetrics(activeMetric);
+                const previewMetrics = getPreviewMetrics(selectedMetric);
                 
                 return renderPreviewLines({
                   itemId: hoveredMetric,
@@ -808,7 +711,7 @@ export default function WanLatencyChart({
                       isHighlighted,
                       color: colors.latency,
                       chartData: aggregatedData,
-                      dataKey: `latency_ms_${activeMetric}`,
+                      dataKey: `latency_ms_${selectedMetric}`,
                       showBoundaryMarkers: true,
                     });
                     
@@ -816,7 +719,7 @@ export default function WanLatencyChart({
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey={`latency_ms_${activeMetric}`}
+                  dataKey={`latency_ms_${selectedMetric}`}
                   stroke={colors.latency}
                         strokeWidth={2.0}
                         dot={lineStyle.dot}
@@ -835,7 +738,7 @@ export default function WanLatencyChart({
                       isHighlighted,
                       color: colors.jitter,
                       chartData: aggregatedData,
-                      dataKey: `jitter_ms_${activeMetric}`,
+                      dataKey: `jitter_ms_${selectedMetric}`,
                       showBoundaryMarkers: true,
                     });
                     
@@ -843,7 +746,7 @@ export default function WanLatencyChart({
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey={`jitter_ms_${activeMetric}`}
+                  dataKey={`jitter_ms_${selectedMetric}`}
                   stroke={colors.jitter}
                         strokeWidth={2.0}
                         dot={lineStyle.dot}
@@ -862,7 +765,7 @@ export default function WanLatencyChart({
                       isHighlighted,
                       color: colors.packetLoss,
                       chartData: aggregatedData,
-                      dataKey: `packet_loss_percent_${activeMetric}`,
+                      dataKey: `packet_loss_percent_${selectedMetric}`,
                       showBoundaryMarkers: true,
                     });
                     
@@ -870,7 +773,7 @@ export default function WanLatencyChart({
                 <Line
                   yAxisId="right"
                   type="monotone"
-                  dataKey={`packet_loss_percent_${activeMetric}`}
+                  dataKey={`packet_loss_percent_${selectedMetric}`}
                   stroke={colors.packetLoss}
                         strokeWidth={2.0}
                         dot={lineStyle.dot}
@@ -895,16 +798,16 @@ export default function WanLatencyChart({
                 // In focus mode, show all three metrics except the selected one
                 if (focusedMetric) {
                   // Show all metrics except the selected one
-                  if (activeMetric === "avg") {
+                  if (selectedMetric === "avg") {
                     previewMetrics.push("min", "max");
-                  } else if (activeMetric === "min") {
+                  } else if (selectedMetric === "min") {
                     previewMetrics.push("avg", "max");
-                  } else if (activeMetric === "max") {
+                  } else if (selectedMetric === "max") {
                     previewMetrics.push("min", "avg");
                   }
                 } else {
                   // When hovering, show the other two metrics (already excludes selected)
-                  previewMetrics.push(...getPreviewMetrics(activeMetric));
+                  previewMetrics.push(...getPreviewMetrics(selectedMetric));
                 }
                 
                 // Find the last non-null values for preview metrics (for labels)
@@ -986,417 +889,6 @@ export default function WanLatencyChart({
     );
   }
 
-  // Render drawer variant with new layout
-  if (variant === 'drawer') {
-    // Chart height (from prop or default)
-    const chartHeight = height ?? 256;
-    
-    // Calculate min/avg/max values for each metric (for drawer legend)
-    const metricStats: Record<MetricKey, { min: string; avg: string; max: string }> = {
-      latency_ms: { min: '0ms', avg: '0ms', max: '0ms' },
-      jitter_ms: { min: '0ms', avg: '0ms', max: '0ms' },
-      packet_loss_percent: { min: '0%', avg: '0%', max: '0%' },
-    };
-    
-    // Calculate stats from aggregated data
-    const metricsToCalculate: MetricKey[] = ['latency_ms', 'jitter_ms', 'packet_loss_percent'];
-    metricsToCalculate.forEach((metricKey) => {
-      let sumMin = 0, sumAvg = 0, sumMax = 0;
-      let countMin = 0, countAvg = 0, countMax = 0;
-      let minMin = Infinity, minAvg = Infinity, minMax = Infinity;
-      let maxMin = -Infinity, maxAvg = -Infinity, maxMax = -Infinity;
-      
-      aggregatedData.forEach((row: any) => {
-        const minVal = row[`${metricKey}_min`];
-        const avgVal = row[`${metricKey}_avg`];
-        const maxVal = row[`${metricKey}_max`];
-        
-        if (typeof minVal === 'number' && !isNaN(minVal)) {
-          sumMin += minVal;
-          countMin++;
-          minMin = Math.min(minMin, minVal);
-          maxMin = Math.max(maxMin, minVal);
-        }
-        if (typeof avgVal === 'number' && !isNaN(avgVal)) {
-          sumAvg += avgVal;
-          countAvg++;
-          minAvg = Math.min(minAvg, avgVal);
-          maxAvg = Math.max(maxAvg, avgVal);
-        }
-        if (typeof maxVal === 'number' && !isNaN(maxVal)) {
-          sumMax += maxVal;
-          countMax++;
-          minMax = Math.min(minMax, maxVal);
-          maxMax = Math.max(maxMax, maxVal);
-        }
-      });
-      
-      const unit = metricKey === 'packet_loss_percent' ? '%' : 'ms';
-      
-      if (countMin > 0 && countAvg > 0 && countMax > 0) {
-        metricStats[metricKey] = {
-          min: `${Number(minMin.toFixed(1))}${unit}`,
-          avg: `${Number((sumAvg / countAvg).toFixed(1))}${unit}`,
-          max: `${Number(maxMax.toFixed(1))}${unit}`,
-        };
-      }
-    });
-    
-    // Prepare drawer legend items with min/avg/max
-    const drawerLegendItems: DrawerLegendItem[] = metricsToCalculate.map((metricKey) => {
-      const stats = metricStats[metricKey];
-      return {
-        id: metricKey,
-        label: METRIC_LABELS[metricKey],
-        color: colors[metricKey === "latency_ms" ? "latency" : metricKey === "jitter_ms" ? "jitter" : "packetLoss"],
-        min: stats.min,
-        avg: stats.avg,
-        max: stats.max,
-        isHidden: hiddenMetrics.has(metricKey),
-        activeMetric: selectedMetric,
-      };
-    });
-    
-    // WAN chart has 2 Y axes (left for ms, right for %), so right margin should be 8
-    const hasRightYAxis = true;
-    const rightMargin = hasRightYAxis ? 0 : 32;
-    
-    return (
-      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ height: `${chartHeight + 90}px` }}>
-        <ChartDrawerContent
-          sidebar={
-            <ChartDrawerLegend
-              dataItems={drawerLegendItems}
-              timestamp={timestampInfo}
-              liveValues={liveValues}
-              focusedItem={focusedMetric}
-              onFocusItem={(id) => {
-                setPreFocusHiddenMetrics(hiddenMetrics);
-                setFocusedMetric(id as MetricKey);
-                cleanupLegendHover();
-              }}
-              onExitFocus={() => {
-                setFocusedMetric(null);
-                setHiddenMetrics(preFocusHiddenMetrics);
-                setHoveredMetric(null);
-              }}
-              onToggleDataItem={(id) => {
-                setHoveredMetric(null);
-                setHiddenMetrics((prev) => {
-                  const next = new Set(prev);
-                  const metricKey = id as MetricKey;
-                  if (next.has(metricKey)) {
-                    next.delete(metricKey);
-                  } else {
-                    next.add(metricKey);
-                  }
-                  return next;
-                });
-              }}
-              onMouseEnter={(id) => {
-                if (!focusedMetric && !hiddenMetrics.has(id as MetricKey)) {
-                  setHoveredMetric(id as MetricKey);
-                }
-              }}
-              onMouseLeave={() => {
-                setHoveredMetric(null);
-              }}
-            />
-          }
-        >
-          {/* Header */}
-          <ChartDrawerHeader
-            title="WAN history"
-            metricButton={<MetricButton label="Latency" />}
-            selectedMetrics={[activeMetric]}
-            onMetricsChange={metricType === undefined ? (metrics) => {
-              if (metrics.length > 0) {
-                setSelectedMetric(metrics[metrics.length - 1] as MetricType);
-              }
-            } : undefined}
-            hideMetricToggles={metricType !== undefined}
-            showDragHandle={showDragHandle}
-            dragHandleProps={dragHandleProps}
-            isDragging={isDragging}
-            actions={
-              <button
-                type="button"
-                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                onClick={() => console.log('More options')}
-              >
-                <Icon name="more-vertical" size={16} />
-              </button>
-            }
-          />
-          
-          {/* Chart */}
-          <div className="chart-drawer-chart-container">
-            <div className="chart-drawer-chart-inner" style={{ height: chartHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart 
-                  data={aggregatedData} 
-                  margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}
-                  onMouseMove={handleChartMouseMove}
-                  onMouseLeave={handleChartMouseLeave}
-                  syncId={enableSync ? "tooltipSync" : undefined}
-                  syncMethod="index"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
-                  <XAxis
-                    dataKey="x"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    ticks={xTicks as any}
-                    tick={renderTick as any}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={yAxisDomains.latency_ms}
-                    ticks={yAxisTicks.latency_ms}
-                    label={{ value: 'ms', angle: -90, position: 'insideLeft', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
-                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
-                    width={50}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={yAxisDomains.packet_loss_percent}
-                    label={{ value: '%', angle: 90, position: 'insideRight', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
-                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
-                    width={50}
-                  />
-                  <Tooltip 
-                    content={() => null}
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }}
-                    isAnimationActive={false}
-                  />
-
-                  {/* In focus mode, show selected metric as main line with dots, others as preview lines */}
-                  {focusedMetric && (() => {
-                    const metricColor = colors[focusedMetric === "latency_ms" ? "latency" : focusedMetric === "jitter_ms" ? "jitter" : "packetLoss"];
-                    const yAxisId = focusedMetric === "packet_loss_percent" ? "right" : "left";
-                    
-                    // Show selected metric as main line with dots (like hover mode)
-                    const lineStyle = useChartLineStyle({
-                      isHighlighted: true,
-                      color: metricColor,
-                      chartData: aggregatedData,
-                      dataKey: `${focusedMetric}_${activeMetric}`,
-                      showBoundaryMarkers: true,
-                    });
-                    
-                    // Get preview metrics (the other two)
-                    const previewMetrics = getPreviewMetrics(activeMetric);
-                    
-                    return (
-                      <>
-                        {/* Main line for selected metric with dots */}
-                        <Line
-                          yAxisId={yAxisId}
-                          type="monotone"
-                          dataKey={`${focusedMetric}_${activeMetric}`}
-                          stroke={metricColor}
-                          strokeWidth={2.0}
-                          dot={lineStyle.dot}
-                          activeDot={lineStyle.activeDot}
-                          isAnimationActive={false}
-                          connectNulls={false}
-                          strokeOpacity={lineStyle.strokeOpacity}
-                        />
-                        
-                        {/* Preview lines for other metrics without dots */}
-                        {renderPreviewLines({
-                          itemId: focusedMetric,
-                          color: metricColor,
-                          yAxisId,
-                          dataKeyPrefix: focusedMetric,
-                          previewMetrics,
-                        })}
-                      </>
-                    );
-                  })()}
-
-                  {/* Preview lines when hovering on a metric (not in focus mode) */}
-                  {!focusedMetric && hoveredMetric && (() => {
-                    const metricColor = colors[hoveredMetric === "latency_ms" ? "latency" : hoveredMetric === "jitter_ms" ? "jitter" : "packetLoss"];
-                    const yAxisId = hoveredMetric === "packet_loss_percent" ? "right" : "left";
-                    const previewMetrics = getPreviewMetrics(activeMetric);
-                    
-                    return renderPreviewLines({
-                      itemId: hoveredMetric,
-                      color: metricColor,
-                      yAxisId,
-                      dataKeyPrefix: hoveredMetric,
-                      previewMetrics,
-                    });
-                  })()}
-
-                  {/* Main metric lines - only show when not in focus mode and not hovering */}
-                  {!focusedMetric && (
-                    <>
-                      {/* Latency line */}
-                      {!hiddenMetrics.has("latency_ms") && (() => {
-                        const isHighlighted = hoveredMetric === null || hoveredMetric === "latency_ms";
-                        const lineStyle = useChartLineStyle({
-                          isHighlighted,
-                          color: colors.latency,
-                          chartData: aggregatedData,
-                          dataKey: `latency_ms_${activeMetric}`,
-                          showBoundaryMarkers: true,
-                        });
-                        
-                        return (
-                          <Line
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey={`latency_ms_${activeMetric}`}
-                            stroke={colors.latency}
-                            strokeWidth={2.0}
-                            dot={lineStyle.dot}
-                            activeDot={lineStyle.activeDot}
-                            isAnimationActive={false}
-                            connectNulls={false}
-                            strokeOpacity={lineStyle.strokeOpacity}
-                          />
-                        );
-                      })()}
-                  
-                      {/* Jitter line */}
-                      {!hiddenMetrics.has("jitter_ms") && (() => {
-                        const isHighlighted = hoveredMetric === null || hoveredMetric === "jitter_ms";
-                        const lineStyle = useChartLineStyle({
-                          isHighlighted,
-                          color: colors.jitter,
-                          chartData: aggregatedData,
-                          dataKey: `jitter_ms_${activeMetric}`,
-                          showBoundaryMarkers: true,
-                        });
-                        
-                        return (
-                          <Line
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey={`jitter_ms_${activeMetric}`}
-                            stroke={colors.jitter}
-                            strokeWidth={2.0}
-                            dot={lineStyle.dot}
-                            activeDot={lineStyle.activeDot}
-                            isAnimationActive={false}
-                            connectNulls={false}
-                            strokeOpacity={lineStyle.strokeOpacity}
-                          />
-                        );
-                      })()}
-                  
-                      {/* Packet loss line */}
-                      {!hiddenMetrics.has("packet_loss_percent") && (() => {
-                        const isHighlighted = hoveredMetric === null || hoveredMetric === "packet_loss_percent";
-                        const lineStyle = useChartLineStyle({
-                          isHighlighted,
-                          color: colors.packetLoss,
-                          chartData: aggregatedData,
-                          dataKey: `packet_loss_percent_${activeMetric}`,
-                          showBoundaryMarkers: true,
-                        });
-                        
-                        return (
-                          <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey={`packet_loss_percent_${activeMetric}`}
-                            stroke={colors.packetLoss}
-                            strokeWidth={2.0}
-                            dot={lineStyle.dot}
-                            activeDot={lineStyle.activeDot}
-                            isAnimationActive={false}
-                            connectNulls={false}
-                            strokeOpacity={lineStyle.strokeOpacity}
-                          />
-                        );
-                      })()}
-                    </>
-                  )}
-
-                  {/* Reference lines with labels - rendered last to appear on top */}
-                  {(hoveredMetric || focusedMetric) && (() => {
-                    const metricToShow = focusedMetric || hoveredMetric;
-                    if (!metricToShow) return null;
-                    const metricColor = colors[metricToShow === "latency_ms" ? "latency" : metricToShow === "jitter_ms" ? "jitter" : "packetLoss"];
-                    const yAxisId = metricToShow === "packet_loss_percent" ? "right" : "left";
-                    const previewMetrics: MetricType[] = [];
-                    
-                    // In focus mode, show all three metrics except the selected one
-                    if (focusedMetric) {
-                      // Show all metrics except the selected one
-                      if (activeMetric === "avg") {
-                        previewMetrics.push("min", "max");
-                      } else if (activeMetric === "min") {
-                        previewMetrics.push("avg", "max");
-                      } else if (activeMetric === "max") {
-                        previewMetrics.push("min", "avg");
-                      }
-                    } else {
-                      // When hovering, show the other two metrics (already excludes selected)
-                      previewMetrics.push(...getPreviewMetrics(activeMetric));
-                    }
-                    
-                    // Find the last non-null values for preview metrics (for labels)
-                    const previewValues: Record<MetricType, number | null> = {
-                      avg: null,
-                      min: null,
-                      max: null,
-                    };
-                    
-                    previewMetrics.forEach((metric) => {
-                      for (let i = aggregatedData.length - 1; i >= 0; i--) {
-                        const rowValue = aggregatedData[i]?.[`${metricToShow}__preview_${metric}`];
-                        if (typeof rowValue === "number" && !Number.isNaN(rowValue)) {
-                          previewValues[metric] = rowValue;
-                          break;
-                        }
-                      }
-                    });
-                    
-                    // Add reference lines with labels for each preview metric
-                    return previewMetrics.map((metric) => {
-                      const value = previewValues[metric];
-                      if (value !== null) {
-                        return (
-                          <ReferenceLine
-                            key={`${metricToShow}__label_${metric}`}
-                            yAxisId={yAxisId}
-                            y={value}
-                            stroke="transparent"
-                            label={<ChartReferenceLabel value={metric} color={metricColor} />}
-                          />
-                        );
-                      }
-                      return null;
-                    }).filter(Boolean);
-                  })()}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </ChartDrawerContent>
-        
-        {/* Resize handle - only visible in drawer variant */}
-        {showResizeHandle && onHeightChange && (
-          <ResizeHandleVertical onResize={onHeightChange} />
-        )}
-      </div>
-    );
-  }
-
-  // Default variant rendering
   return (
     <>
       <ChartCard
@@ -1406,7 +898,7 @@ export default function WanLatencyChart({
         header={
           <ChartHeader
             title="WAN history"
-            metricButton={metricType === undefined ? <MetricButton label="Latency" /> : undefined}
+            metricButton={<MetricButton label="Latency" />}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}

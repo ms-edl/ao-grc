@@ -1,190 +1,102 @@
 import { HTMLAttributes } from 'react';
-import { TooltipButton } from './tooltip-button';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
 const dragHandleVariants = cva(
-  "drag-handle inline-flex items-center justify-center rounded-lg transition-opacity duration-150 hover:opacity-100",
+  "drag-handle rounded-full transition-all duration-150",
   {
     variants: {
       orientation: {
-        vertical: "flex-col",
-        horizontal: "flex-row",
+        horizontal: "",
+        vertical: "",
       },
-      width: {
-        sm: "w-6 h-6",
-        md: "w-8 h-8",
-        lg: "w-10 h-10",
+      size: {
+        sm: "",
+        md: "",
+        lg: "",
       },
     },
+    compoundVariants: [
+      // Horizontal orientation: width x 4px height
+      { orientation: "horizontal", size: "sm", class: "w-3 h-1" },      // 12x4
+      { orientation: "horizontal", size: "md", class: "w-6 h-1" },      // 24x4
+      { orientation: "horizontal", size: "lg", class: "w-8 h-1" },      // 32x4
+      // Vertical orientation: 4px width x height
+      { orientation: "vertical", size: "sm", class: "w-1 h-3" },        // 4x12
+      { orientation: "vertical", size: "md", class: "w-1 h-6" },        // 4x24
+      { orientation: "vertical", size: "lg", class: "w-1 h-8" },        // 4x32
+    ],
     defaultVariants: {
-      orientation: "vertical",
-      width: "md",
+      orientation: "horizontal",
+      size: "md",
     },
   }
 );
 
-interface DragHandleProps extends HTMLAttributes<HTMLDivElement>, VariantProps<typeof dragHandleVariants> {
+interface DragHandleProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'>, VariantProps<typeof dragHandleVariants> {
+  /**
+   * Whether the handle is being actively dragged
+   */
   isDragging?: boolean;
+/**
+   * Whether the handle should be visible (e.g., when parent element is hovered)
+   * inactive: opacity 0
+   * active: opacity 1
+   */
+  isActive?: boolean;
+  /**
+   * Whether the handle itself is being hovered
+   * hover: changes color to content-primary
+   */
+  isHovered?: boolean;
 }
 
 /**
- * DragHandle - Reusable grip handle for drag & drop with orientation and size variants
+ * DragHandle - Simple rounded bar handle for drag & drop interactions
  * 
- * Features:
- * - 6-dot grip icon (2x3 or 3x2 grid based on orientation)
- * - Always visible (opacity 0.3, increases to 1 on hover)
- * - Uses content-tertiary color
- * - Configurable size (sm/md/lg)
- * - Configurable orientation (vertical/horizontal)
- * - Cursor: grab/grabbing states
+ * Design:
+ * - Rounded bar (no icon)
+ * - Horizontal: 12/24/32 x 4px
+ * - Vertical: 4 x 12/24/32px
+ * 
+ * States:
+ * - inactive: content-tertiary, opacity: 0
+ * - active: content-tertiary, opacity: 1
+ * - hover: content-primary, opacity: 1
  */
 export function DragHandle({ 
   isDragging, 
-  orientation = "vertical",
-  width = "md",
-  className = '', 
+  isActive = false,
+  isHovered = false,
+  orientation = "horizontal",
+  size = "md",
+  className = '',
   ...props 
 }: DragHandleProps) {
-  // Size configurations for different width variants
-  const sizeConfig = {
-    sm: { iconSize: 12, dotRadius: 1, spacing: { vertical: [4, 3, 8, 3, 12, 3], horizontal: [3, 4, 3, 8, 3, 12] } },
-    md: { iconSize: 16, dotRadius: 1.5, spacing: { vertical: [5, 4, 11, 4, 5, 8, 11, 8, 5, 12, 11, 12], horizontal: [4, 5, 8, 5, 12, 5, 4, 11, 8, 11, 12, 11] } },
-    lg: { iconSize: 20, dotRadius: 2, spacing: { vertical: [6, 5, 14, 5, 6, 10, 14, 10, 6, 15, 14, 15], horizontal: [5, 6, 10, 6, 15, 6, 5, 14, 10, 14, 15, 14] } },
+  // Determine state-based styles
+  const getOpacity = () => {
+    if (isHovered || isDragging) return 1;
+    if (isActive) return 1;
+    return 0;
   };
 
-  const config = sizeConfig[width as keyof typeof sizeConfig] || sizeConfig.md;
-  const isVertical = orientation === "vertical";
+  const getBackgroundColor = () => {
+    if (isHovered || isDragging) {
+      return 'rgb(var(--content-primary))';
+    }
+    return 'rgb(var(--content-tertiary))';
+  };
 
   return (
     <div
-      className={dragHandleVariants({ orientation, width, className })}
+      className={cn(dragHandleVariants({ orientation, size }), className)}
       style={{
-        cursor: isDragging ? 'grabbing' : 'grab',
+        backgroundColor: getBackgroundColor(),
+        opacity: getOpacity(),
         touchAction: 'none',
-        opacity: 0.3,
+        pointerEvents: 'none', // Let parent handle pointer events
       }}
       {...props}
-    >
-      <svg
-        width={config.iconSize}
-        height={config.iconSize}
-        viewBox={`0 0 ${config.iconSize} ${config.iconSize}`}
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ color: 'rgb(var(--content-tertiary))' }}
-      >
-        {isVertical ? (
-          // Vertical orientation: 2 columns, 3 rows (default)
-          <>
-            {/* Top row dots */}
-            <circle cx={config.spacing.vertical[0]} cy={config.spacing.vertical[1]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.vertical[2]} cy={config.spacing.vertical[3]} r={config.dotRadius} fill="currentColor" />
-            
-            {/* Middle row dots */}
-            <circle cx={config.spacing.vertical[4]} cy={config.spacing.vertical[5]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.vertical[6]} cy={config.spacing.vertical[7]} r={config.dotRadius} fill="currentColor" />
-            
-            {/* Bottom row dots */}
-            <circle cx={config.spacing.vertical[8]} cy={config.spacing.vertical[9]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.vertical[10]} cy={config.spacing.vertical[11]} r={config.dotRadius} fill="currentColor" />
-          </>
-        ) : (
-          // Horizontal orientation: 3 columns, 2 rows
-          <>
-            {/* Left column dots */}
-            <circle cx={config.spacing.horizontal[0]} cy={config.spacing.horizontal[1]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.horizontal[2]} cy={config.spacing.horizontal[3]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.horizontal[4]} cy={config.spacing.horizontal[5]} r={config.dotRadius} fill="currentColor" />
-            
-            {/* Right column dots */}
-            <circle cx={config.spacing.horizontal[6]} cy={config.spacing.horizontal[7]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.horizontal[8]} cy={config.spacing.horizontal[9]} r={config.dotRadius} fill="currentColor" />
-            <circle cx={config.spacing.horizontal[10]} cy={config.spacing.horizontal[11]} r={config.dotRadius} fill="currentColor" />
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-/**
- * DragHandleButton - DragHandle with tooltip wrapper
- * Use this when you need the tooltip functionality
- */
-interface DragHandleButtonProps extends DragHandleProps {
-  tooltip?: string;
-}
-
-export function DragHandleButton({ 
-  isDragging, 
-  orientation = "vertical",
-  width = "md",
-  tooltip = "Drag to reorder",
-  className = '',
-  ...props 
-}: DragHandleButtonProps) {
-  // Size configurations for different width variants
-  const sizeConfig = {
-    sm: { iconSize: 12, dotRadius: 1, spacing: { vertical: [4, 3, 8, 3, 12, 3], horizontal: [3, 4, 3, 8, 3, 12] } },
-    md: { iconSize: 16, dotRadius: 1.5, spacing: { vertical: [5, 4, 11, 4, 5, 8, 11, 8, 5, 12, 11, 12], horizontal: [4, 5, 8, 5, 12, 5, 4, 11, 8, 11, 12, 11] } },
-    lg: { iconSize: 20, dotRadius: 2, spacing: { vertical: [6, 5, 14, 5, 6, 10, 14, 10, 6, 15, 14, 15], horizontal: [5, 6, 10, 6, 15, 6, 5, 14, 10, 14, 15, 14] } },
-  };
-
-  const config = sizeConfig[width as keyof typeof sizeConfig] || sizeConfig.md;
-  const isVertical = orientation === "vertical";
-
-  return (
-    <TooltipButton
-      className={dragHandleVariants({ orientation, width, className })}
-      style={{
-        cursor: isDragging ? 'grabbing' : 'grab',
-        touchAction: 'none',
-        opacity: 0.3,
-      }}
-      tooltip={tooltip}
-      tooltipSide="bottom"
-      asChild
-    >
-      <div {...props}>
-        <svg
-          width={config.iconSize}
-          height={config.iconSize}
-          viewBox={`0 0 ${config.iconSize} ${config.iconSize}`}
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ color: 'rgb(var(--content-tertiary))' }}
-        >
-          {isVertical ? (
-            // Vertical orientation: 2 columns, 3 rows (default)
-            <>
-              {/* Top row dots */}
-              <circle cx={config.spacing.vertical[0]} cy={config.spacing.vertical[1]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.vertical[2]} cy={config.spacing.vertical[3]} r={config.dotRadius} fill="currentColor" />
-              
-              {/* Middle row dots */}
-              <circle cx={config.spacing.vertical[4]} cy={config.spacing.vertical[5]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.vertical[6]} cy={config.spacing.vertical[7]} r={config.dotRadius} fill="currentColor" />
-              
-              {/* Bottom row dots */}
-              <circle cx={config.spacing.vertical[8]} cy={config.spacing.vertical[9]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.vertical[10]} cy={config.spacing.vertical[11]} r={config.dotRadius} fill="currentColor" />
-            </>
-          ) : (
-            // Horizontal orientation: 3 columns, 2 rows
-            <>
-              {/* Left column dots */}
-              <circle cx={config.spacing.horizontal[0]} cy={config.spacing.horizontal[1]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.horizontal[2]} cy={config.spacing.horizontal[3]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.horizontal[4]} cy={config.spacing.horizontal[5]} r={config.dotRadius} fill="currentColor" />
-              
-              {/* Right column dots */}
-              <circle cx={config.spacing.horizontal[6]} cy={config.spacing.horizontal[7]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.horizontal[8]} cy={config.spacing.horizontal[9]} r={config.dotRadius} fill="currentColor" />
-              <circle cx={config.spacing.horizontal[10]} cy={config.spacing.horizontal[11]} r={config.dotRadius} fill="currentColor" />
-            </>
-          )}
-        </svg>
-      </div>
-    </TooltipButton>
+    />
   );
 }

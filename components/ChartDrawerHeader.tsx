@@ -43,6 +43,11 @@ interface ChartDrawerHeaderProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
+  
+  /**
+   * Hide metric toggles (when controlled by global toggle)
+   */
+  hideMetricToggles?: boolean;
 }
 
 /**
@@ -61,6 +66,7 @@ export default function ChartDrawerHeader({
   showDragHandle = false,
   dragHandleProps,
   isDragging = false,
+  hideMetricToggles = false,
 }: ChartDrawerHeaderProps) {
   const handleMetricToggle = (metric: MetricType) => {
     if (!onMetricsChange) return;
@@ -79,14 +85,11 @@ export default function ChartDrawerHeader({
   };
   
   return (
-    <div className="w-full flex items-center justify-between gap-4">
+    <div className="chart-header--drawer">
       {/* Left side: Title + Metric */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="chart-header--drawer-left">
         {/* Title */}
-        <h3 
-          className="text-content-primary font-semibold flex-shrink-0"
-          style={{ fontSize: '16px', lineHeight: '24px' }}
-        >
+        <h3 className="chart-title">
           {title}
         </h3>
         
@@ -95,7 +98,7 @@ export default function ChartDrawerHeader({
       </div>
       
       {/* Right side: Min/Avg/Max Toggles + Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="chart-header--drawer-right">
         {/* Min/Avg/Max Toggles */}
         {onMetricsChange && (
           <div className="flex items-center gap-1">
@@ -148,7 +151,7 @@ function MetricToggle({ label, isActive, onClick }: MetricToggleProps) {
         lineHeight: '16px',
         fontWeight: 500,
         color: isActive ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
-        backgroundColor: isActive ? 'rgb(var(--surface-action))' : 'transparent',
+        backgroundColor: isActive ? 'rgb(var(--surface-action-hover))' : 'transparent',
       }}
       onClick={onClick}
     >

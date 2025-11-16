@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { DragHandle } from "./drag-handle"
 
 interface ResizeHandleVerticalProps {
   onResize: (deltaY: number) => void
@@ -14,6 +15,7 @@ interface ResizeHandleVerticalProps {
  * - Visual feedback on hover and active drag
  * - Smooth transitions
  * - Cursor change to ns-resize
+ * - Uses DragHandle component (horizontal bar for vertical resizing)
  */
 export function ResizeHandleVertical({ onResize, className }: ResizeHandleVerticalProps) {
   const [isDragging, setIsDragging] = React.useState(false)
@@ -54,31 +56,24 @@ export function ResizeHandleVertical({ onResize, className }: ResizeHandleVertic
   return (
     <div
       className={cn(
-        "absolute bottom-0 left-0 right-0 cursor-ns-resize transition-all",
+        "absolute bottom-0 left-0 right-0 cursor-ns-resize",
         "flex items-center justify-center",
         className
       )}
       style={{
-        height: isHovered || isDragging ? '12px' : '8px',
+        height: '24px',
         zIndex: 10,
       }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Visual indicator line */}
-      <div
-        className="transition-all rounded-full"
-        style={{
-          width: isHovered || isDragging ? '48px' : '32px',
-          height: isHovered || isDragging ? '4px' : '3px',
-          backgroundColor: isDragging 
-            ? 'rgb(var(--content-secondary))' 
-            : isHovered 
-              ? 'rgb(var(--content-tertiary))' 
-              : 'transparent',
-          opacity: isDragging ? 0.8 : isHovered ? 0.5 : 0.3,
-        }}
+      <DragHandle 
+        orientation="horizontal"
+        size="md"
+        isDragging={isDragging}
+        isActive={false}
+        isHovered={isHovered}
       />
     </div>
   )
