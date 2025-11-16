@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { ResizeHandleVertical } from './ui/resize-handle-vertical';
 
 interface ChartCardProps {
   header: ReactNode;
@@ -6,6 +7,8 @@ interface ChartCardProps {
   legendActions?: ReactNode; // Optional second legend row for toggles/actions
   children: ReactNode;
   variant?: 'default' | 'drawer'; // Variant for different display contexts
+  showResizeHandle?: boolean; // Show vertical resize handle (drawer only)
+  onHeightChange?: (deltaY: number) => void; // Callback when height changes
 }
 
 /**
@@ -20,20 +23,24 @@ interface ChartCardProps {
  * - legendActions: Optional second legend row for toggles (Avg/Min/Max, etc.)
  * - children: Chart content
  * - variant: 'default' (fixed width) or 'drawer' (full width)
+ * - showResizeHandle: Show vertical resize handle at bottom (drawer only)
+ * - onHeightChange: Callback when height changes via resize handle
  */
 export default function ChartCard({ 
   header,
   legend,
   legendActions,
   children,
-  variant = 'default'
+  variant = 'default',
+  showResizeHandle = false,
+  onHeightChange
 }: ChartCardProps) {
   const widthStyle = variant === 'drawer' 
     ? { overflow: "visible", width: "100%", maxWidth: "100%" } 
     : { overflow: "visible", width: "864px" };
 
   return (
-    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
+    <div className="bg-surface-tile chart-gradient-border rounded-lg relative" style={widthStyle}>
       {/* Header container with padding */}
       <div className="p-5 flex flex-col items-start gap-3">
         {/* Title row with actions */}
@@ -50,6 +57,11 @@ export default function ChartCard({
       <div className="p-5">
         {children}
       </div>
+
+      {/* Resize handle - only visible in drawer variant */}
+      {showResizeHandle && variant === 'drawer' && onHeightChange && (
+        <ResizeHandleVertical onResize={onHeightChange} />
+      )}
     </div>
   );
 }

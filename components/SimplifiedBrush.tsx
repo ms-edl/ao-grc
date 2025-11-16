@@ -39,17 +39,32 @@ export interface SimplifiedBrushProps {
 // ==========================
 // Components
 // ==========================
-const HandleVisual: React.FC<{ hover?: boolean }> = ({ hover = false }) => (
-  <div
-    className="rounded-full transition-all duration-150"
-    style={{ 
-      width: 12,
-      height: 12,
-      backgroundColor: "rgb(var(--content-tertiary))",
-      boxShadow: hover ? "0 2px 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.2)",
-    }}
-  />
-);
+const HandleVisual: React.FC<{ hover?: boolean; active?: boolean; bandHovered?: boolean; anyHandleInteracted?: boolean }> = ({ hover = false, active = false, bandHovered = false, anyHandleInteracted = false }) => {
+  let backgroundColor = "rgb(var(--content-tertiary))";
+  let opacity = 0;
+  
+  if (hover || active) {
+    backgroundColor = "rgb(var(--content-primary))";
+    opacity = 1;
+  } else if (bandHovered || anyHandleInteracted) {
+    backgroundColor = "rgb(var(--content-tertiary))";
+    opacity = 1;
+  }
+  
+  return (
+    <div
+      className="transition-all duration-150"
+      style={{ 
+        width: 4,
+        height: 12,
+        borderRadius: 2,
+        backgroundColor,
+        boxShadow: (hover || active) ? "0 2px 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.2)",
+        opacity,
+      }}
+    />
+  );
+};
 
 const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' | 'right' }> = ({ label, visible, side }) => {
   const baseStyle: React.CSSProperties = {
@@ -64,13 +79,13 @@ const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' |
     userSelect: 'none',
   };
   if (side === 'left') {
-    Object.assign(baseStyle, { right: '100%', marginRight: 8 });
+    Object.assign(baseStyle, { right: '100%', marginRight: -4 });
   } else if (side === 'right') {
-    Object.assign(baseStyle, { left: '100%', marginLeft: 8 });
+    Object.assign(baseStyle, { left: '100%', marginLeft: -4 });
   }
   return (
     <div
-      className="px-2 py-1 rounded-md bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200 absolute-gradient-border"
+      className="px-2 py-1 rounded-md absolute-gradient-border bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200"
       style={baseStyle}
     >
       {label}
@@ -201,6 +216,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
   const selectionRight = Math.max(handleLeft, handleRight);
 
   const tooltipsVisible = dragging !== null || hoverLeft || hoverRight || hoverBand;
+  const anyHandleInteracted = hoverLeft || hoverRight || dragging === "left" || dragging === "right";
 
   const labelForIndex = useCallback((idx: number) => {
     const v = (data[idx] as any)[xKey];
@@ -226,6 +242,9 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
     
     const ticks: number[] = [];
     for (let i = 0; i < data.length; i += tickInterval) {
+      // Skip first and last ticks
+      if (i === 0 || i >= data.length - tickInterval) continue;
+      
       const x = (i / (total - 1)) * trackWidth;
       ticks.push(x);
     }
@@ -238,7 +257,12 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
       <div ref={trackRef} className="relative w-full" style={{ height: 64, userSelect: 'none' }}>
         {/* Track with simplified tick visualization */}
         <div 
-          className="absolute inset-x-4 top-2 h-8 transition-colors duration-200 bg-surface-section absolute-gradient-border rounded-full overflow-hidden"
+          className="absolute inset-x-4 top-2 h-8 transition-colors duration-200 rounded-lg overflow-hidden"
+          style={{ 
+            backgroundColor: "rgb(var(--content-primary) / 0.05)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)"
+          }}
         >
           {/* Tick marks */}
           <svg
@@ -249,30 +273,24 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
             aria-hidden
             style={{ pointerEvents: "none", display: "block" }}
           >
-            {tickPositions.map((x, i) => (
-              <line
-                key={i}
-                x1={x}
-                y1={16}
-                x2={x}
-                y2={24}
-                stroke="rgb(var(--content-tertiary))"
-                strokeWidth={2}
-                strokeLinecap="round"
-                opacity={0.2}
-              />
-            ))}
+            {tickPositions.map((x, i) => {
+              // Check if this tick is within the selected range
+              const isInSelection = x >= selectionLeft && x <= selectionRight;
+              return (
+                <line
+                  key={i}
+                  x1={x}
+                  y1={16}
+                  x2={x}
+                  y2={24}
+                  stroke="rgb(var(--content-primary))"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  opacity={isInSelection ? 0.1 : 0.03}
+                />
+              );
+            })}
           </svg>
-
-          {/* Dimming overlays for areas outside selection */}
-          <div
-            className="absolute top-0 bottom-0"
-            style={{ left: 0, width: `${selectionLeft + 1}px`, background: "rgb(var(--surface-tile)/0.65)", zIndex: 0, pointerEvents: "none" }}
-          />
-          <div
-            className="absolute top-0 bottom-0"
-            style={{ left: selectionRight, width: `${Math.max(0, trackWidth - selectionRight + 1)}px`, background: "rgb(var(--surface-tile)/0.65)", zIndex: 0, pointerEvents: "none" }}
-          />
         </div>
 
         {/* Selection band */}
@@ -281,11 +299,10 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
           style={{
             left: Math.min(handleLeft, handleRight) + 16,
             width: Math.abs(handleRight - handleLeft),
-            background: `rgb(var(--content-tertiary)/${hoverBand ? "0.25" : "0.15"})`,
-            borderRadius: 100,
+            background: `rgb(var(--content-primary) / 0.1)`,
+            borderRadius: 8,
             transition: "background-color 150ms ease",
             zIndex: 2,
-            border: "1px solid rgb(var(--content-tertiary))",
           }}
           onMouseDown={(e) => {
             e.preventDefault();
@@ -305,19 +322,20 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
           aria-label="Start"
           className="absolute flex items-center justify-center cursor-ew-resize"
           style={{ 
-            left: handleLeft + 26,
+            left: handleLeft + 6,
             top: 24,
-            transform: `translateY(-50%) ${hoverLeft ? 'scale(1.2)' : 'scale(1)'}`,
+            transform: `translateY(-50%) ${hoverLeft || dragging === "left" ? 'scale(1.2)' : 'scale(1)'}`,
             transition: 'transform 150ms ease',
             zIndex: 3,
-            width: 12,
-            height: 12,
+            width: 32,
+            height: 32,
+            padding: 4,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("left"); }}
           onMouseEnter={() => setHoverLeft(true)}
           onMouseLeave={() => setHoverLeft(false)}
         >
-          <HandleVisual hover={hoverLeft} />
+          <HandleVisual hover={hoverLeft} active={dragging === "left"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
           <TooltipBadge label={labelForIndex(localStart)} visible={tooltipsVisible} side="left" />
         </div>
 
@@ -329,17 +347,18 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
           style={{ 
             left: handleRight - 6,
             top: 24,
-            transform: `translateY(-50%) ${hoverRight ? 'scale(1.2)' : 'scale(1)'}`,
+            transform: `translateY(-50%) ${hoverRight || dragging === "right" ? 'scale(1.2)' : 'scale(1)'}`,
             transition: 'transform 150ms ease',
             zIndex: 3,
-            width: 12,
-            height: 12,
+            width: 32,
+            height: 32,
+            padding: 4,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("right"); }}
           onMouseEnter={() => setHoverRight(true)}
           onMouseLeave={() => setHoverRight(false)}
         >
-          <HandleVisual hover={hoverRight} />
+          <HandleVisual hover={hoverRight} active={dragging === "right"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
           <TooltipBadge label={labelForIndex(localEnd)} visible={tooltipsVisible} side="right" />
         </div>
       </div>

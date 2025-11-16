@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Icon } from './ui/icons';
 import { TooltipButton } from './ui/tooltip-button';
+import { DragHandleButton } from './ui/drag-handle';
 
 // Re-export AoBtnFilter for convenience
 export { AoBtnFilter } from './ui/ao-btn-filter';
@@ -9,6 +10,9 @@ interface ChartHeaderProps {
   title: string;
   metricButton?: ReactNode;
   actions?: ReactNode;
+  showDragHandle?: boolean;
+  dragHandleProps?: any; // Props from @dnd-kit useSortable
+  isDragging?: boolean;
 }
 
 /**
@@ -16,9 +20,16 @@ interface ChartHeaderProps {
  * 
  * Provides consistent layout:
  * - Left: Title + optional metric selector dropdown
- * - Right: Optional action buttons (filters, maximize, etc.)
+ * - Right: Optional action buttons (filters, maximize, etc.) + optional drag handle
  */
-export default function ChartHeader({ title, metricButton, actions }: ChartHeaderProps) {
+export default function ChartHeader({ 
+  title, 
+  metricButton, 
+  actions,
+  showDragHandle = false,
+  dragHandleProps,
+  isDragging = false
+}: ChartHeaderProps) {
   return (
     <div className="w-full flex items-top justify-between relative">
       <div className="flex items-center gap-3">
@@ -27,11 +38,17 @@ export default function ChartHeader({ title, metricButton, actions }: ChartHeade
       </div>
       
       {/* Actions container (right-aligned) */}
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        {actions}
+        
+        {/* Drag handle - only shown when enabled */}
+        {showDragHandle && (
+          <DragHandleButton
+            isDragging={isDragging}
+            {...dragHandleProps}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -41,3 +41,10 @@ export interface ChartConfig {
   showDateRange?: boolean;
   enableZoom?: boolean;
 }
+
+// Drag & Drop Chart Configuration
+export interface ChartItemConfig {
+  id: string;
+  type: 'multidevice' | 'wan' | string; // Extensible for future chart types
+  order: number;
+}

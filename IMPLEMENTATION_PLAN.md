@@ -29,17 +29,19 @@
 - Phase 3: Global Tooltip Sync (CombinedLatency drawer only)
 - Phase 4: Brush Management (visible in main, hidden in drawer)
 - Phase 5: Simplified Resizable Drawer (horizontal width only, fixed 256px chart heights)
+- Phase 5.5: Vertical Chart Resizing (drawer-only, independent heights per chart)
 
 **⏸️ Deferred:**
 - Phase 6: Drag & Drop Chart Reordering (future enhancement)
 - Phase 7: Keyboard Shortcuts (future enhancement)
 
 **Key Decisions:**
-1. **Fixed Chart Heights**: All charts use 256px height for simplicity and consistency
-2. **No Vertical Resize**: Removed complex chart height resizing - users don't need it
+1. **Default Fixed Heights**: Charts start at 256px height for consistency
+2. **Drawer-Only Vertical Resize**: Added vertical chart resizing in drawer (256-600px per chart)
 3. **Drawer-Only Brush**: Brush hidden in drawer views for cleaner UI
 4. **Natural Tile Sizing**: ChartCard adapts to content without min-height constraints
-5. **Horizontal Resize Only**: Drawer width adjustable (30-80% of screen)
+5. **Horizontal Resize**: Drawer width adjustable (30-80% of screen)
+6. **Independent Heights**: Each chart in drawer can have different height with localStorage persistence
 
 ### Goals
 - Enhance chart interactivity with synchronized tooltips
@@ -317,6 +319,103 @@ Instead of complex resizable chart heights, we implemented:
 
 ---
 
+### Phase 5.5: Vertical Chart Resizing in Drawer ✅ COMPLETED
+**Priority:** High  
+**Risk:** Low  
+**Status:** ✅ Completed (November 14, 2025)
+
+#### Implementation Approach
+Added vertical resizing capability to chart tiles when displayed in the drawer. Each chart gets a drag handle at its bottom edge, allowing users to adjust heights independently while maintaining a clean, consistent UI.
+
+#### Key Features
+- **Non-disruptive**: Charts start at current 256px height
+- **Independent sizing**: Each chart can have different height
+- **Conservative limits**: Min 256px, Max 600px per chart
+- **Persistent**: Heights saved to localStorage by chart identifier
+- **Drawer-only feature**: Resizing only available in drawer view, not main view
+
+#### Tasks Completed
+- [x] Create `components/ui/resize-handle-vertical.tsx`
+  - Mouse drag handlers with visual feedback
+  - Hover states with smooth transitions
+  - Subtle indicator line (3-4px height, expands on hover)
+- [x] Extend ChartCard component
+  - Added `showResizeHandle`, `onHeightChange` props
+  - Renders resize handle at bottom when in drawer variant
+- [x] Update MultiDeviceLatencyChart
+  - Added `height` prop (defaults to 256px)
+  - Replaced hardcoded 256px with dynamic `chartHeight`
+  - Added `showResizeHandle` and `onHeightChange` props
+  - Integrated ResizeHandleVertical at bottom of chart tile
+- [x] Update WanLatencyChart
+  - Added `height` prop (defaults to 256px)
+  - Replaced hardcoded 256px with dynamic `chartHeight`
+  - Added `showResizeHandle` and `onHeightChange` props
+  - Integrated ResizeHandleVertical at bottom of chart tile
+- [x] Add height state management in CombinedLatencyPage
+  - LocalStorage persistence (`chartHeight_multiDevice`, `chartHeight_wan`)
+  - Default: 256px, Min: 256px, Max: 600px
+  - Independent height tracking for each chart
+  - Handler functions with proper clamping logic
+
+#### Implementation Details
+```tsx
+// Height state with localStorage persistence
+const [multiDeviceHeight, setMultiDeviceHeight] = useState(() => {
+  const stored = localStorage.getItem('chartHeight_multiDevice');
+  return stored ? Math.min(Math.max(Number(stored), 256), 600) : 256;
+});
+
+// Height change handler with clamping
+const handleMultiDeviceHeightChange = useCallback((deltaY: number) => {
+  setMultiDeviceHeight(prevHeight => {
+    const newHeight = Math.min(Math.max(prevHeight + deltaY, 256), 600);
+    localStorage.setItem('chartHeight_multiDevice', String(newHeight));
+    return newHeight;
+  });
+}, []);
+
+// In drawer charts
+<MultiDeviceLatencyChart 
+  height={multiDeviceHeight}
+  showResizeHandle={true}
+  onHeightChange={handleMultiDeviceHeightChange}
+/>
+```
+
+#### Recharts Compatibility
+Confirmed via [Recharts API documentation](https://recharts.github.io/en-US/api/) that ResponsiveContainer automatically adapts to parent container dimension changes:
+- Outer `div` controls height dynamically
+- `ResponsiveContainer` fills 100% of parent
+- Chart components re-render smoothly as height changes
+
+#### Deliverables ✅
+- ✅ ResizeHandleVertical component with mouse drag handlers
+- ✅ ChartCard supports resize handle rendering
+- ✅ Both chart components accept dynamic height prop
+- ✅ Heights persist across browser sessions in localStorage
+- ✅ Each chart remembers its own height independently
+- ✅ Smooth visual feedback on hover and drag
+- ✅ No linter errors
+
+#### Testing ✅
+- ✅ Charts start at 256px height by default
+- ✅ Drag handle appears at bottom of each chart tile in drawer
+- ✅ Dragging down increases height smoothly
+- ✅ Dragging up decreases height smoothly
+- ✅ Height clamped to 256px minimum
+- ✅ Height clamped to 600px maximum
+- ✅ Heights persist after closing/reopening drawer
+- ✅ Each chart remembers its own height independently
+- ✅ Hover state shows visual feedback
+- ✅ Cursor changes to ns-resize on hover
+- ✅ No resize handle appears in main view
+- ✅ Chart content re-renders smoothly during resize
+- ✅ Tooltips still work correctly after resize
+- ✅ Brush still works correctly with resized charts
+
+---
+
 ### Phase 6: Drag & Drop Chart Reordering (2 hours)
 **Priority:** Medium  
 **Risk:** Medium
@@ -406,6 +505,7 @@ Instead of complex resizable chart heights, we implemented:
 │   │   ├── chart-drawer.tsx                # ✅ CREATED (Legacy drawer)
 │   │   ├── resizable.tsx                   # ✅ CREATED (Resizable panels)
 │   │   ├── resizable-chart-drawer.tsx      # ✅ CREATED (Main drawer implementation)
+│   │   ├── resize-handle-vertical.tsx      # ✅ CREATED (Vertical resize handle)
 │   │   └── ao-btn-filter.tsx               # ✅ CREATED (Filter button component)
 │   │
 │   ├── SyncedChartContext.tsx              # ✅ CREATED (tooltip sync context)
@@ -425,15 +525,15 @@ Instead of complex resizable chart heights, we implemented:
 │   └── styles.css                          # ✅ MODIFIED: Added animations & tooltip styles
 │
 ├── components/
-│   ├── ChartCard.tsx                       # ✅ MODIFIED: Removed min-height, simplified
+│   ├── ChartCard.tsx                       # ✅ MODIFIED: Added resize handle props, removed min-height
 │   ├── ChartHeader.tsx                     # ✅ MODIFIED: Removed SizeToggleButton
 │   ├── ChartLegend.tsx                     # ✅ MODIFIED: Removed showTooltipForItem
 │   ├── ChartTooltip.tsx                    # ✅ NO CHANGES: Works with sync as-is
-│   ├── MultiDeviceLatencyChart.tsx         # ✅ MODIFIED: Added sync support with Recharts syncId
-│   └── WanLatencyChart.tsx                 # ✅ MODIFIED: Added sync support with Recharts syncId
+│   ├── MultiDeviceLatencyChart.tsx         # ✅ MODIFIED: Added sync + dynamic height support
+│   └── WanLatencyChart.tsx                 # ✅ MODIFIED: Added sync + dynamic height support
 │
 ├── src/
-│   └── CombinedLatencyPage.tsx             # ✅ MODIFIED: Added SyncedChartProvider wrapper
+│   └── CombinedLatencyPage.tsx             # ✅ MODIFIED: Added height state with localStorage
 │
 └── package.json                            # ✅ MODIFIED: Added vaul dependency
 ```
@@ -729,17 +829,50 @@ Increase: +40KB gzipped (~9.6% increase)
 
 ---
 
-**Last Updated:** November 13, 2025  
-**Status:** Phase 1, 2, 3, 4, 5 Complete | Phase 6, 7 Deferred  
+**Last Updated:** November 14, 2025  
+**Status:** Phase 1-5.5 Complete | Phase 6-7 Deferred | Brush Enhancement Complete  
 **Current State:**
 - ✅ Foundation & Shadcn components complete
 - ✅ Global tooltip sync working in CombinedLatency drawer
-- ✅ Resizable drawer with fixed 256px chart heights
+- ✅ Resizable drawer (horizontal width adjustment)
+- ✅ Resizable chart heights in drawer (vertical, 256-600px per chart)
 - ✅ Brush hidden in drawer, visible in main views
-- ✅ Simplified ChartCard without min-height constraints
+- ✅ Simplified ChartCard with resize handle support
+- ✅ Enhanced SimplifiedBrush with modern design (November 14, 2025)
 - ⏸️ Drag & drop and keyboard shortcuts deferred
 
-**Completed Today:**
+**Completed November 14, 2025:**
+
+- ✅ Phase 5.5: Vertical Chart Resizing in Drawer
+  - Created ResizeHandleVertical component with mouse drag handlers
+  - Extended ChartCard with showResizeHandle and onHeightChange props
+  - Updated MultiDeviceLatencyChart with dynamic height support
+  - Updated WanLatencyChart with dynamic height support
+  - Added height state management in CombinedLatencyPage
+  - LocalStorage persistence for individual chart heights
+  - Min 256px, Max 600px with smooth clamping
+  - Independent height control per chart
+  - Drawer-only feature (not in main view)
+  - Confirmed Recharts ResponsiveContainer compatibility
+  - No linter errors
+
+- ✅ SimplifiedBrush Design Enhancement
+  - Replaced rectangular drag handles with 12x12px circular handles (content-tertiary)
+  - Changed track border-radius from `rounded-md` to `rounded-full` for pill shape
+  - Increased tick density from 12-24 hours to 6-hour intervals
+  - Widened tick marks from 1px to 2px with rounded caps
+  - Reduced tick height from full height to 8px, centered vertically
+  - Positioned handles 16px inset from selection band edges for better visual balance
+  - Selection band now uses full rounded corners (borderRadius: 100)
+  
+- ✅ Drawer UI Enhancements
+  - Added layered squares icon to Graph Studio header
+  - Increased header title font size from text-lg (1.125rem) to 1.25rem
+  - Made icon themable with content-secondary color variable
+  - Fixed tooltip z-index hierarchy (parent: 1001, gradient: 1, brush: 2)
+  - Tooltips now properly fade behind brush gradient overlay
+  
+**Previously Completed (November 13, 2025):**
 - ✅ Phase 3: Global Tooltip Sync
   - Created `SyncedChartContext.tsx` for managing sync state
   - Updated both charts to support `enableSync` prop
@@ -748,13 +881,16 @@ Increase: +40KB gzipped (~9.6% increase)
   - Main view charts remain independent (sync only in drawer)
 
 **Next Steps (if continuing):**
-1. Implement Global Brush in drawer affecting both charts simultaneously
-   - Lift brush state to CombinedLatencyPage or shared context
-   - Pass shared `range` prop to both charts when in drawer
-   - Single brush control for synchronized time range selection
-2. Implement Phase 6 (Drag & Drop) for chart reordering
-3. Implement Phase 7 (Keyboard Shortcuts) for power users
-4. Consider localStorage persistence for drawer width and brush range
+1. Consider adding brush labels/tooltips for date ranges
+2. Consider localStorage persistence for drawer width and brush range
+3. Implement Phase 6 (Drag & Drop) for chart reordering
+4. Implement Phase 7 (Keyboard Shortcuts) for power users
 
-**Approved By:** Completed through Phase 5
+**Design Philosophy:**
+- Minimalist, modern aesthetic with rounded corners and subtle shadows
+- Themable components using CSS variable system
+- Proper z-index layering for overlapping UI elements
+- Consistent use of content-secondary for secondary UI elements
+
+**Approved By:** Completed through Phase 5.5 + Brush Enhancement
 

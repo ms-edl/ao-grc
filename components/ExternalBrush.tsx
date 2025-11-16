@@ -43,34 +43,34 @@ export interface ExternalBrushProps {
 // ==========================
 // Components
 // ==========================
-const HandleVisual: React.FC<{ hover?: boolean }> = ({ hover = false }) => (
-  <div
-    className="h-6 rounded-md bg-surface-tile border border-gradient-border flex flex-col items-center justify-center transition-all duration-150"
-    style={{ 
-      boxShadow: hover ? "0 4px 12px rgba(0,0,0,0.25)" : "0 1px 2px rgba(0,0,0,0.15)", 
-      width: 16,
-      borderColor: hover ? "rgb(var(--content-tertiary))" : "var(--gradient-border)",
-    }}
-  >
-    <svg
-      width={10}
-      height={10}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ transform: "rotate(90deg)" }}
-      aria-hidden
-      className="text-content-tertiary"
-    >
-      <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  </div>
-);
+const HandleVisual: React.FC<{ hover?: boolean; active?: boolean; bandHovered?: boolean; anyHandleInteracted?: boolean }> = ({ hover = false, active = false, bandHovered = false, anyHandleInteracted = false }) => {
+  let backgroundColor = "rgb(var(--content-tertiary))";
+  let opacity = 0;
+  
+  if (hover || active) {
+    backgroundColor = "rgb(var(--content-primary))";
+    opacity = 1;
+  } else if (bandHovered || anyHandleInteracted) {
+    backgroundColor = "rgb(var(--content-tertiary))";
+    opacity = 1;
+  }
+  
+  return (
+    <div
+      className="transition-all duration-150"
+      style={{ 
+        width: 4,
+        height: 12,
+        borderRadius: 2,
+        backgroundColor,
+        boxShadow: (hover || active) ? "0 2px 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.2)",
+        opacity,
+      }}
+    />
+  );
+};
 
 const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' | 'right' }> = ({ label, visible, side }) => {
-  // Position next to the handle, vertically centered
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     top: '50%',
@@ -82,15 +82,14 @@ const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' |
     maxWidth: 'none',
     userSelect: 'none',
   };
-  // Place OUTSIDE the selection band: left-of-left-handle, right-of-right-handle
   if (side === 'left') {
-    Object.assign(baseStyle, { right: '100%', marginRight: 8 });
+    Object.assign(baseStyle, { right: '100%', marginRight: -4 });
   } else if (side === 'right') {
-    Object.assign(baseStyle, { left: '100%', marginLeft: 8 });
+    Object.assign(baseStyle, { left: '100%', marginLeft: -4 });
   }
   return (
     <div
-      className="px-2 py-1 rounded-md bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200 absolute-gradient-border"
+      className="px-2 py-1 rounded-md absolute-gradient-border bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200"
       style={baseStyle}
     >
       {label}
@@ -225,6 +224,7 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
   const selectionRight = Math.max(handleLeft, handleRight);
 
   const tooltipsVisible = dragging !== null || hoverLeft || hoverRight || hoverBand;
+  const anyHandleInteracted = hoverLeft || hoverRight || dragging === "left" || dragging === "right";
 
   const labelForIndex = useCallback((idx: number) => {
     const v = (data[idx] as any)[xKey];
@@ -327,14 +327,20 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
   return (
     <div className="mt-4">
       <div ref={trackRef} className="relative w-full" style={{ height: 64, userSelect: 'none' }}>
-        {/* Track with embedded mini overview (clips via overflow hidden) */}
+        {/* Track with mini chart */}
         <div 
-          className="absolute inset-x-4 top-2 h-10 transition-colors duration-200 bg-surface-section absolute-gradient-border rounded-md overflow-hidden"
+          className="absolute inset-x-4 top-2 h-8 transition-colors duration-200 rounded-lg overflow-hidden"
+          style={{ 
+            backgroundColor: "rgb(var(--content-primary) / 0.05)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)"
+          }}
         >
+          {/* Mini chart visualization */}
           <svg
             width="100%"
             height="100%"
-            viewBox={`0 0 ${Math.max(1, previewPaths.w)} ${previewPaths.h}`}
+            viewBox={`0 0 ${Math.max(1, previewPaths.w)} 40`}
             preserveAspectRatio="none"
             aria-hidden
             style={{ pointerEvents: "none", display: "block" }}
@@ -342,7 +348,7 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
             {previewPaths.areaPath && (
               <path d={previewPaths.areaPath}
                 fill="rgb(var(--content-tertiary))"
-                fillOpacity={0.2}
+                fillOpacity={0.15}
                 stroke="none"
               />
             )}
@@ -350,8 +356,8 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
               <path d={previewPaths.linePath}
                 fill="none"
                 stroke={overviewColor}
-                strokeWidth={1}
-                opacity={0.9}
+                strokeWidth={1.5}
+                opacity={0.6}
               />
             )}
           </svg>
@@ -359,25 +365,24 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
           {/* Dimming overlays for areas outside selection */}
           <div
             className="absolute top-0 bottom-0"
-            style={{ left: 0, width: `${selectionLeft + 1}px`, background: "rgb(var(--surface-tile)/0.65)", zIndex: 0, pointerEvents: "none" }}
+            style={{ left: 0, width: `${selectionLeft + 1}px`, background: "rgb(var(--surface-tile)/0.7)", zIndex: 0, pointerEvents: "none" }}
           />
           <div
             className="absolute top-0 bottom-0"
-            style={{ left: selectionRight, width: `${Math.max(0, previewPaths.w - selectionRight + 1)}px`, background: "rgb(var(--surface-tile)/0.65)", zIndex: 0, pointerEvents: "none" }}
+            style={{ left: selectionRight, width: `${Math.max(0, previewPaths.w - selectionRight + 1)}px`, background: "rgb(var(--surface-tile)/0.7)", zIndex: 0, pointerEvents: "none" }}
           />
         </div>
 
         {/* Selection band */}
         <div
-          className="absolute top-2 h-10 cursor-grab active:cursor-grabbing"
+          className="absolute top-2 h-8 cursor-grab active:cursor-grabbing"
           style={{
             left: Math.min(handleLeft, handleRight) + 16,
             width: Math.abs(handleRight - handleLeft),
-            background: `rgb(var(--content-tertiary)/${hoverBand ? "0.25" : "0.15"})`,
-            borderRadius: 6,
+            background: `rgb(var(--content-primary) / 0.1)`,
+            borderRadius: 8,
             transition: "background-color 150ms ease",
             zIndex: 2,
-            border: "1px solid rgb(var(--content-tertiary))",
           }}
           onMouseDown={(e) => {
             e.preventDefault();
@@ -395,18 +400,22 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
         <div
           role="slider"
           aria-label="Start"
-          className="absolute top-2 w-4 h-10 flex items-center justify-center cursor-ew-resize"
+          className="absolute flex items-center justify-center cursor-ew-resize"
           style={{ 
-            left: handleLeft + 8,
-            transform: hoverLeft ? 'scale(1.1)' : 'scale(1)',
+            left: handleLeft + 6,
+            top: 24,
+            transform: `translateY(-50%) ${hoverLeft || dragging === "left" ? 'scale(1.2)' : 'scale(1)'}`,
             transition: 'transform 150ms ease',
             zIndex: 3,
+            width: 32,
+            height: 32,
+            padding: 4,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("left"); }}
           onMouseEnter={() => setHoverLeft(true)}
           onMouseLeave={() => setHoverLeft(false)}
         >
-          <HandleVisual hover={hoverLeft} />
+          <HandleVisual hover={hoverLeft} active={dragging === "left"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
           <TooltipBadge label={labelForIndex(localStart)} visible={tooltipsVisible} side="left" />
         </div>
 
@@ -414,18 +423,22 @@ export const ExternalBrush: React.FC<ExternalBrushProps> = ({
         <div
           role="slider"
           aria-label="End"
-          className="absolute top-2 w-4 h-10 flex items-center justify-center cursor-ew-resize"
+          className="absolute flex items-center justify-center cursor-ew-resize"
           style={{ 
-            left: handleRight + 8,
-            transform: hoverRight ? 'scale(1.1)' : 'scale(1)',
+            left: handleRight - 6,
+            top: 24,
+            transform: `translateY(-50%) ${hoverRight || dragging === "right" ? 'scale(1.2)' : 'scale(1)'}`,
             transition: 'transform 150ms ease',
             zIndex: 3,
+            width: 32,
+            height: 32,
+            padding: 4,
           }}
           onMouseDown={(e) => { e.preventDefault(); setDragging("right"); }}
           onMouseEnter={() => setHoverRight(true)}
           onMouseLeave={() => setHoverRight(false)}
         >
-          <HandleVisual hover={hoverRight} />
+          <HandleVisual hover={hoverRight} active={dragging === "right"} bandHovered={hoverBand} anyHandleInteracted={anyHandleInteracted} />
           <TooltipBadge label={labelForIndex(localEnd)} visible={tooltipsVisible} side="right" />
         </div>
       </div>

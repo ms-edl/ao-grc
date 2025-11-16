@@ -11,12 +11,13 @@ import {
 } from "recharts";
 import { ExternalBrush } from "./ExternalBrush";
 import { ResizableChartDrawer } from "./ui/resizable-chart-drawer";
+import { ResizeHandleVertical } from "./ui/resize-handle-vertical";
 import ChartCard from "./ChartCard";
 import { useTimeAxis, toDate } from "./TimeAxis";
 import ChartHeader, { MetricButton, MaximizeButton } from "./ChartHeader";
 import { useChartTheme } from "./hooks/useChartTheme";
 import { useChartLegendHover } from "./hooks/useChartLegendHover";
-import { ChartLegend, LegendItem } from "./ChartLegend";
+import { GraphLegend } from "./ui/graph-legend";
 import { useChartLineStyle } from "./hooks/useChartLineStyle";
 import { ChartReferenceLabel } from "./ChartReferenceLabel";
 import { applyRollingWindowToDataset } from "./utils/rollingWindowStats";
@@ -87,6 +88,30 @@ interface WanLatencyChartProps {
    * Callback to report data length after loading (for global brush)
    */
   onDataLoad?: (dataLength: number, data: any[]) => void;
+  /**
+   * Optional chart height in pixels (defaults to 256px)
+   */
+  height?: number;
+  /**
+   * Show vertical resize handle (drawer only)
+   */
+  showResizeHandle?: boolean;
+  /**
+   * Callback when height changes via resize handle
+   */
+  onHeightChange?: (deltaY: number) => void;
+  /**
+   * Show drag handle for reordering (drawer only)
+   */
+  showDragHandle?: boolean;
+  /**
+   * Props from @dnd-kit for drag handle
+   */
+  dragHandleProps?: any;
+  /**
+   * Whether the chart is currently being dragged
+   */
+  isDragging?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -96,7 +121,13 @@ export default function WanLatencyChart({
   enableSync = false,
   sharedRange,
   onRangeChange,
-  onDataLoad
+  onDataLoad,
+  height,
+  showResizeHandle = false,
+  onHeightChange,
+  showDragHandle = false,
+  dragHandleProps,
+  isDragging = false,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -466,7 +497,7 @@ export default function WanLatencyChart({
   }, [enableSync, syncContext, syncContext?.syncedTimestamp, aggregatedData]);
 
   const renderMetricLegend = () => {
-    const legendItems: LegendItem[] = (["latency_ms", "jitter_ms", "packet_loss_percent"] as MetricKey[]).map((key) => ({
+    const legendItems = (["latency_ms", "jitter_ms", "packet_loss_percent"] as MetricKey[]).map((key) => ({
       id: key,
       label: METRIC_LABELS[key],
       color: colors[key === "latency_ms" ? "latency" : key === "jitter_ms" ? "jitter" : "packetLoss"],
@@ -476,7 +507,7 @@ export default function WanLatencyChart({
     return (
     <div className="w-full flex items-center justify-between gap-2">
       {/* Metric indicators */}
-        <ChartLegend
+        <GraphLegend
           items={legendItems}
           onToggleItem={(id) => {
                   setHoveredMetric(null);
@@ -553,8 +584,8 @@ export default function WanLatencyChart({
     const hasRightYAxis = true; // WAN chart always has right Y axis for packet loss
     const rightMargin = hasRightYAxis ? 0 : 32;
     
-    // Same height for all charts
-    const chartHeight = 256;
+    // Chart height (from prop or default)
+    const chartHeight = height ?? 256;
     
     return (
     <div style={{ overflow: "visible", position: "relative" }}>
@@ -862,10 +893,15 @@ export default function WanLatencyChart({
     <>
       <ChartCard
         variant={variant}
+        showResizeHandle={showResizeHandle}
+        onHeightChange={onHeightChange}
         header={
           <ChartHeader
             title="WAN history"
             metricButton={<MetricButton label="Latency" />}
+            showDragHandle={showDragHandle}
+            dragHandleProps={dragHandleProps}
+            isDragging={isDragging}
             actions={variant === 'default' ? (
               <MaximizeButton onClick={() => {
                 if (onMaximize) {

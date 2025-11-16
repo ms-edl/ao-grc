@@ -12,10 +12,15 @@ import {
 } from "recharts";
 import { ExternalBrush } from "./ExternalBrush";
 import { ResizableChartDrawer } from "./ui/resizable-chart-drawer";
+import { ResizeHandleVertical } from "./ui/resize-handle-vertical";
 import ChartHeader, { MetricButton, MaximizeButton, FilterDivider, AoBtnFilter } from "./ChartHeader";
+import ChartDrawerHeader from "./ChartDrawerHeader";
+import { ChartDrawerContent } from "./ChartDrawerContent";
+import { ChartDrawerLegend, DrawerLegendItem, DrawerLegendSectionItem } from "./ChartDrawerLegend";
 import { useChartTheme } from "./hooks/useChartTheme";
 import { useChartLegendHover } from "./hooks/useChartLegendHover";
-import { ChartLegend, LegendItem } from "./ChartLegend";
+import { GraphLegend } from "./ui/graph-legend";
+import { GraphLegendItem } from "./ui/graph-legend-item";
 import { useChartLineStyle } from "./hooks/useChartLineStyle";
 import { calculateMetrics } from "./utils/rollingWindowStats";
 import { ChartReferenceLabel } from "./ChartReferenceLabel";
@@ -23,6 +28,7 @@ import { calculateYAxisDomainFromDevices } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
+import { Icon } from "./ui/icons";
 
 const toDate = (v: any): Date | null => {
   if (v instanceof Date) return v;
@@ -130,6 +136,30 @@ interface MultiDeviceLatencyChartProps {
    * Callback to report data length after loading (for global brush)
    */
   onDataLoad?: (dataLength: number, data: any[]) => void;
+  /**
+   * Optional chart height in pixels (defaults to 256px)
+   */
+  height?: number;
+  /**
+   * Show vertical resize handle (drawer only)
+   */
+  showResizeHandle?: boolean;
+  /**
+   * Callback when height changes via resize handle
+   */
+  onHeightChange?: (deltaY: number) => void;
+  /**
+   * Show drag handle for reordering (drawer only)
+   */
+  showDragHandle?: boolean;
+  /**
+   * Props from @dnd-kit for drag handle
+   */
+  dragHandleProps?: any;
+  /**
+   * Whether the chart is currently being dragged
+   */
+  isDragging?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -139,8 +169,17 @@ export default function MultiDeviceLatencyChart({
   enableSync = false,
   sharedRange,
   onRangeChange,
-  onDataLoad
+  onDataLoad,
+  height,
+  showResizeHandle = false,
+  onHeightChange,
+  showDragHandle = false,
+  dragHandleProps,
+  isDragging = false,
 }: MultiDeviceLatencyChartProps = {}) {
+  // Chart height (from prop or default)
+  const chartHeight = height ?? 256;
+  
   // Core data state
   const [data, setData] = useState<Row[]>([]);
   const [deviceNames, setDeviceNames] = useState<Record<string, string>>({});
@@ -1002,19 +1041,326 @@ export default function MultiDeviceLatencyChart({
 
   if (loading) {
     return (
-      <div className="w-full p-5 bg-white rounded-md border border-gray-200">Loading latency dataset…</div>
+      <div className="w-full p-5 bg-surface-tile chart-gradient-border rounded-md">Loading latency dataset…</div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full p-5 bg-white rounded-md border border-red-200 text-red-700">{error}</div>
+      <div className="w-full p-5 bg-surface-tile chart-gradient-border rounded-md text-red-700">{error}</div>
     );
   }
+  
+  // Debug log
+  console.log('MultiDeviceLatencyChart rendering, variant:', variant, 'deviceIds:', visibleDeviceIds.length);
 
   const widthStyle = variant === 'drawer' 
     ? { overflow: "visible", width: "100%", maxWidth: "100%" } 
     : { overflow: "visible", width: "864px" };
+
+  // Render drawer variant with new layout
+  if (variant === 'drawer') {
+    console.log('Rendering drawer variant');
+    
+    // Calculate min/avg/max values for each device (for drawer legend)
+    const deviceStats: Record<string, { min: number; avg: number; max: number }> = {};
+    
+    visibleDeviceIds.forEach((id) => {
+      let sum = 0;
+      let count = 0;
+      let min = Infinity;
+      let max = -Infinity;
+      
+      chartData.forEach((row: any) => {
+        const val = row[id];
+        if (typeof val === 'number' && !isNaN(val)) {
+          sum += val;
+          count++;
+          min = Math.min(min, val);
+          max = Math.max(max, val);
+        }
+      });
+      
+      if (count > 0) {
+        deviceStats[id] = {
+          min: Number(min.toFixed(1)),
+          avg: Number((sum / count).toFixed(1)),
+          max: Number(max.toFixed(1)),
+        };
+      }
+    });
+    
+    // Prepare drawer legend items with min/avg/max
+    // Use filteredDeviceIds (not visibleDeviceIds) so hidden items still appear
+    const drawerLegendItems: DrawerLegendItem[] = filteredDeviceIds.map((id) => {
+      const stats = deviceStats[id] || { min: 0, avg: 0, max: 0 };
+      return {
+        id,
+        label: deviceNames[id] || id,
+        color: DEVICE_COLORS[id] || "#999",
+        min: `${stats.min}ms`,
+        avg: `${stats.avg}ms`,
+        max: `${stats.max}ms`,
+        isHidden: hiddenDevices.has(id),
+        activeMetric: selectedMetric, // Pass the selected metric
+      };
+    });
+    
+    // Prepare section items (band types)
+    const drawerSectionItems: DrawerLegendSectionItem[] = (["24", "5", "5m"] as BandCode[])
+      .filter((code) => selectedBands.has(code))
+      .map((code) => ({
+        id: code,
+        label: BAND_LABEL[code],
+        dashArray: BAND_DASH[code],
+        isHidden: hiddenBands.has(code),
+      }));
+    
+    return (
+      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={widthStyle}>
+        <ChartDrawerContent
+          sidebar={
+            <ChartDrawerLegend
+              dataItems={drawerLegendItems}
+              sectionItems={drawerSectionItems}
+              onToggleDataItem={(id) => {
+                setHoveredDevice(null);
+                setHiddenDevices((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) {
+                    next.delete(id);
+                  } else {
+                    next.add(id);
+                  }
+                  return next;
+                });
+              }}
+              onToggleSectionItem={(id) => {
+                setHoveredBand(null);
+                setHiddenBands((prev) => {
+                  const next = new Set(prev);
+                  const code = id as BandCode;
+                  if (next.has(code)) {
+                    next.delete(code);
+                  } else {
+                    next.add(code);
+                  }
+                  return next;
+                });
+              }}
+              onMouseEnter={(id) => {
+                // Check if it's a band or device
+                if (["24", "5", "5m"].includes(id)) {
+                  setHoveredBand(id as BandCode);
+                } else {
+                  if (!focusedDevice && !hiddenDevices.has(id)) {
+                    setHoveredDevice(id);
+                  }
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredDevice(null);
+                setHoveredBand(null);
+              }}
+            />
+          }
+        >
+          {/* Header */}
+          <ChartDrawerHeader
+            title="Client history"
+            metricButton={<MetricButton label="Latency" />}
+            selectedMetrics={[selectedMetric]}
+            onMetricsChange={(metrics) => {
+              if (metrics.length > 0) {
+                setSelectedMetric(metrics[metrics.length - 1] as MetricType);
+              }
+            }}
+            showDragHandle={showDragHandle}
+            dragHandleProps={dragHandleProps}
+            isDragging={isDragging}
+            actions={
+              <>
+                <AoBtnFilter
+                  iconName="wifi"
+                  countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                  ariaLabel="WiFi Bands"
+                  tooltipText="Wi-Fi bands"
+                  onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
+                  buttonRef={filterButtonRef}
+                />
+                <AoBtnFilter
+                  iconName="smartphone"
+                  countLabel={`${selectedClients.size === 0 ? deviceIds.length : selectedClients.size}/${deviceIds.length}`}
+                  ariaLabel="Client Devices"
+                  tooltipText="Client devices"
+                  onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+                  onClick={() => console.log('More options')}
+                >
+                  <Icon name="more-vertical" size={16} />
+                </button>
+              </>
+            }
+          />
+          
+          {/* Chart */}
+          <div className="flex-1 mt-6" style={{ overflow: "visible", position: "relative" }}>
+            <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart 
+                  data={chartData} 
+                  margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
+                  onMouseMove={enableSync ? handleChartMouseMove : undefined}
+                  onMouseLeave={enableSync ? handleChartMouseLeave : undefined}
+                  syncId={enableSync ? "tooltipSync" : undefined}
+                  syncMethod="index"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
+                  <XAxis
+                    dataKey="x"
+                    tickMargin={8}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    ticks={xTicks as any}
+                    tick={renderXAxisTick as any}
+                  />
+                  <YAxis
+                    tickMargin={8}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 30]}
+                    label={{ value: 'ms', angle: -90, position: 'insideLeft', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
+                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
+                    width={50}
+                  />
+                  <Tooltip 
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
+                    offset={12}
+                    allowEscapeViewBox={{ x: false, y: true }}
+                    isAnimationActive={false}
+                    wrapperStyle={{ zIndex: 1000 }}
+                    position={{ y: 0 }}
+                  />
+
+                  <defs>
+                    <pattern id="outageHatch-drawer" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                      <line x1="0" y1="0" x2="0" y2="8" stroke="rgb(var(--content-tertiary))" strokeWidth="2" />
+                    </pattern>
+                  </defs>
+
+                  {outageRanges.map((r, i) => (
+                    <ReferenceArea
+                      key={`outage-${i}`}
+                      x1={r.x1}
+                      x2={r.x2}
+                      fill="rgb(var(--content-tertiary))"
+                      fillOpacity={0.08}
+                      stroke="rgb(var(--content-tertiary))"
+                      strokeOpacity={0.2}
+                    />
+                  ))}
+
+                  {outageRanges.map((r, i) => (
+                    <ReferenceArea
+                      key={`outage-hatch-${i}`}
+                      x1={r.x1}
+                      x2={r.x2}
+                      fill="url(#outageHatch-drawer)"
+                      fillOpacity={0.15}
+                      stroke="rgb(var(--content-tertiary))"
+                      strokeOpacity={0.2}
+                    />
+                  ))}
+                  
+                  {(() => {
+                    if (focusedDevice) {
+                      const deviceId = focusedDevice!;
+                      const deviceColor = DEVICE_COLORS[deviceId] || "#999";
+                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      
+                      return renderPreviewLines({
+                        itemId: deviceId,
+                        color: deviceColor,
+                        dataKeyPrefix: deviceId,
+                        previewMetrics,
+                      });
+                    }
+                    
+                    if (hoveredDevice) {
+                      const deviceId = hoveredDevice!;
+                      const deviceColor = DEVICE_COLORS[deviceId] || "#999";
+                      const previewMetrics = getPreviewMetrics(selectedMetric);
+                      
+                      return renderPreviewLines({
+                        itemId: deviceId,
+                        color: deviceColor,
+                        dataKeyPrefix: deviceId,
+                        previewMetrics,
+                      });
+                    }
+                    
+                    return null;
+                  })()}
+
+                  {visibleDeviceIds.flatMap((id) => (
+                    (["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code) && !hiddenBands.has(code)).map((code) => {
+                      const key = `${id}__band_${code}`;
+                      const color = DEVICE_COLORS[id] || "#555";
+                      const deviceId = id.split('__band_')[0];
+                      const isDeviceHighlighted = hoveredDevice === null || hoveredDevice === deviceId;
+                      const isBandHighlighted = hoveredBand === null || hoveredBand === code;
+                      const isHighlighted = isDeviceHighlighted && isBandHighlighted;
+                      
+                      return (
+                        <Line
+                          key={key}
+                          type="monotone"
+                          dataKey={key}
+                          name={id}
+                          dot={false}
+                          strokeWidth={2.0}
+                          stroke={color}
+                          strokeDasharray={BAND_DASH[code]}
+                          isAnimationActive={false}
+                          connectNulls={false}
+                          strokeOpacity={isHighlighted ? 1 : 0.15}
+                          activeDot={{ r: 4 }}
+                        />
+                      );
+                    })
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </ChartDrawerContent>
+        
+        {/* Resize handle - only visible in drawer variant */}
+        {showResizeHandle && onHeightChange && (
+          <ResizeHandleVertical onResize={onHeightChange} />
+        )}
+        
+        {/* Filter popover */}
+        {isFilterOpen && filterPopoverRef && (
+          <div
+            ref={filterPopoverRef}
+            className="absolute z-50 bg-surface-section border border-gradient-border rounded-lg shadow-lg p-4"
+            style={{ top: '60px', right: '20px', minWidth: '200px' }}
+          >
+            {/* Filter content - simplified for now */}
+            <div className="text-content-primary">Filter options</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Default variant rendering (unchanged)
 
   return (
     <>
@@ -1025,6 +1371,9 @@ export default function MultiDeviceLatencyChart({
           <ChartHeader
             title="Client history"
             metricButton={<MetricButton label="Latency" />}
+            showDragHandle={showDragHandle}
+            dragHandleProps={dragHandleProps}
+            isDragging={isDragging}
             actions={
               <>
                 {/* Filter buttons group */}
@@ -1236,7 +1585,7 @@ export default function MultiDeviceLatencyChart({
 
         {/* Legend row: device colors */}
         {(() => {
-          const legendItems: LegendItem[] = filteredDeviceIds.map((id) => ({
+          const legendItems = filteredDeviceIds.map((id) => ({
             id,
             label: deviceNames[id] || id,
             color: DEVICE_COLORS[id] || "#999",
@@ -1244,7 +1593,7 @@ export default function MultiDeviceLatencyChart({
           }));
                 
                 return (
-            <ChartLegend
+            <GraphLegend
               items={legendItems}
               onToggleItem={(id) => {
                           setHoveredDevice(null);
@@ -1296,19 +1645,13 @@ export default function MultiDeviceLatencyChart({
             {(["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
               const isHidden = hiddenBands.has(code);
               return (
-                <div 
-                  key={code} 
-                  className="flex items-center gap-1 text-xs rounded hover:bg-surface-action-hover transition-colors cursor-pointer" 
-                  style={{ 
-                    padding: "4px 8px",
-                    opacity: isHidden ? 0.4 : 1
-                  }}
-                  onMouseEnter={() => {
-                    if (!isHidden) setHoveredBand(code);
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredBand(null);
-                  }}
+                <GraphLegendItem
+                  key={code}
+                  id={code}
+                  color="currentColor"
+                  dashArray={BAND_DASH[code]}
+                  label={BAND_LABEL[code]}
+                  isHidden={isHidden}
                   onClick={() => {
                     setHoveredBand(null);
                     setHiddenBands((prev) => {
@@ -1321,14 +1664,13 @@ export default function MultiDeviceLatencyChart({
                       return next;
                     });
                   }}
-                >
-                  <svg width="24" height="8" viewBox="0 0 24 8" aria-hidden>
-                    <line x1="2" y1="4" x2="22" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={BAND_DASH[code]} />
-                  </svg>
-                  <span style={{ textDecoration: isHidden ? 'line-through' : 'none' }}>
-                    {BAND_LABEL[code]}
-                  </span>
-                </div>
+                  onMouseEnter={() => {
+                    if (!isHidden) setHoveredBand(code);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredBand(null);
+                  }}
+                />
               );
             })}
           </div>
@@ -1363,7 +1705,7 @@ export default function MultiDeviceLatencyChart({
       </div>
 
               <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
-        <div style={{ height: 256, overflow: "visible", position: "relative" }}>
+        <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
             <LineChart 
@@ -1601,6 +1943,11 @@ export default function MultiDeviceLatencyChart({
         </div>
         )}
       </div>
+
+      {/* Resize handle - only visible in drawer variant */}
+      {showResizeHandle && variant === 'drawer' && onHeightChange && (
+        <ResizeHandleVertical onResize={onHeightChange} />
+      )}
     </div>
     {!hideDrawer && (
     <ResizableChartDrawer 
@@ -1618,6 +1965,9 @@ export default function MultiDeviceLatencyChart({
               <ChartHeader
                 title="Client history"
                 metricButton={<MetricButton label="Latency" />}
+                showDragHandle={showDragHandle}
+                dragHandleProps={dragHandleProps}
+                isDragging={isDragging}
                 actions={
                   <>
                     {/* Filter buttons group */}
@@ -1643,7 +1993,7 @@ export default function MultiDeviceLatencyChart({
 
             {/* Legend row: device colors */}
             {(() => {
-              const legendItems: LegendItem[] = filteredDeviceIds.map((id) => ({
+              const legendItems = filteredDeviceIds.map((id) => ({
                 id,
                 label: deviceNames[id] || id,
                 color: DEVICE_COLORS[id] || "#999",
@@ -1651,7 +2001,7 @@ export default function MultiDeviceLatencyChart({
               }));
                     
                     return (
-                <ChartLegend
+                <GraphLegend
                   items={legendItems}
                   onToggleItem={(id) => {
                               setHoveredDevice(null);
@@ -1703,19 +2053,13 @@ export default function MultiDeviceLatencyChart({
                 {(["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
                   const isHidden = hiddenBands.has(code);
                   return (
-                    <div 
-                      key={code} 
-                      className="flex items-center gap-1 text-xs rounded hover:bg-surface-action-hover transition-colors cursor-pointer" 
-                      style={{ 
-                        padding: "4px 8px",
-                        opacity: isHidden ? 0.4 : 1
-                      }}
-                      onMouseEnter={() => {
-                        if (!isHidden) setHoveredBand(code);
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredBand(null);
-                      }}
+                    <GraphLegendItem
+                      key={code}
+                      id={code}
+                      color="currentColor"
+                      dashArray={BAND_DASH[code]}
+                      label={BAND_LABEL[code]}
+                      isHidden={isHidden}
                       onClick={() => {
                         setHoveredBand(null);
                         setHiddenBands((prev) => {
@@ -1728,14 +2072,13 @@ export default function MultiDeviceLatencyChart({
                           return next;
                         });
                       }}
-                    >
-                      <svg width="24" height="8" viewBox="0 0 24 8" aria-hidden>
-                        <line x1="2" y1="4" x2="22" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={BAND_DASH[code]} />
-                      </svg>
-                      <span style={{ textDecoration: isHidden ? 'line-through' : 'none' }}>
-                        {BAND_LABEL[code]}
-                      </span>
-                    </div>
+                      onMouseEnter={() => {
+                        if (!isHidden) setHoveredBand(code);
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredBand(null);
+                      }}
+                    />
                   );
                 })}
               </div>
@@ -1770,7 +2113,7 @@ export default function MultiDeviceLatencyChart({
           </div>
 
           <div className="p-5" style={{ overflow: "visible", position: "relative" }}>
-            <div style={{ height: 256, overflow: "visible", position: "relative" }}>
+            <div style={{ height: chartHeight, overflow: "visible", position: "relative" }}>
               <ResponsiveContainer width="100%" height="100%">
                 {/* Client chart has only 1 Y axis (left), so right margin should be 32 for labels */}
                 <LineChart 
@@ -1922,6 +2265,11 @@ export default function MultiDeviceLatencyChart({
               />
             </div>
           </div>
+
+          {/* Resize handle - only visible in drawer variant */}
+          {showResizeHandle && variant === 'drawer' && onHeightChange && (
+            <ResizeHandleVertical onResize={onHeightChange} />
+          )}
         </div>
       </ResizableChartDrawer>
     )}
