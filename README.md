@@ -1,18 +1,21 @@
-# Multi-device latency chart prototype
+# Combined Latency Chart Visualization
 
-🔗 **[Live Preview](https://chart-for-ao.vercel.app/)**
+🔗 **[Live Preview](https://ao-graphical-representation-center.vercel.app/)**
 
-This repository contains a prototype implementation of a multi-device latency visualization chart using Recharts. This is a **proof of concept** and requires additional optimization and hardening before production use.
+This repository contains a prototype implementation of combined latency visualization charts (Client and WAN) using Recharts. This is a **proof of concept** and requires additional optimization and hardening before production use.
 
 ## Overview
 
 The prototype demonstrates:
-- Multi-device latency visualization with band switching
+- Combined Client and WAN latency visualization
+- Multi-device latency tracking with band switching (2.4GHz/5GHz)
+- Resizable drawer with both charts and shared brush control
+- Drag-and-drop chart reordering with persistence
 - Interactive brush component for time range selection
 - Theme-aware styling (light/dark modes)
 - Data gap visualization with shaded regions
 - Band-specific line styles (solid, dashed, dotted)
-- Interactive device filtering
+- Interactive device filtering and metric toggling (min/avg/max)
 
 ## ⚠️ Prototype limitations
 
@@ -29,6 +32,12 @@ The prototype demonstrates:
 - Large datasets may cause rendering delays
 - No data virtualization implemented
 - Recommendation: Implement data windowing and virtualization
+
+3. **Drawer interactions**
+- Multiple chart instances in drawer with independent resize handlers
+- Drag-and-drop reordering may cause layout shifts
+- Shared brush state synchronization overhead
+- Recommendation: Optimize rendering pipeline for drawer content
 
 4. **Style system**
 - Heavy reliance on CSS-in-JS calculations
@@ -84,10 +93,16 @@ The project uses a combination of Tailwind CSS and custom CSS variables. Key var
 
 The chart accepts data in two formats:
 
-### CSV format
+### CSV format (Client Latency)
 ```csv
 timestamp,device_id,device_name,latency_ms,band
 2025-08-13 00:00:00,dev-1,ARCADYAN SPEEDHOMEWLAN,7.0,2.4
+```
+
+### CSV format (WAN Latency)
+```csv
+timestamp,latency_ms
+2025-08-13 00:00:00,7.0
 ```
 
 ### TSV format
@@ -95,14 +110,42 @@ timestamp,device_id,device_name,latency_ms,band
 2025-08-13 00:00:00	dev-1	ARCADYAN SPEEDHOMEWLAN	7.0
 ```
 
+## Features
+
+### Combined View
+- Both Client and WAN latency charts displayed side-by-side
+- Each chart has independent controls and filters
+- Maximize button opens shared drawer view
+
+### Drawer View
+- **Drag-and-drop reordering**: Charts can be reordered by dragging
+- **Independent height adjustment**: Each chart has a resize handle (256px - 600px range)
+- **Shared brush control**: Single brush affects all charts for unified time range selection
+- **Persistence**: Chart order and heights are saved to localStorage
+- **Metric toggles**: Switch between min/avg/max values per chart
+- **Synchronized interactions**: Hover and selection states sync across charts
+
+### Chart Features
+- **Client Latency**: Multi-device support with band filtering (2.4GHz/5GHz)
+- **WAN Latency**: Network-level latency tracking
+- **Data gaps**: Visual indication of missing data periods
+- **Theme support**: Seamless light/dark mode switching
+- **Interactive legends**: Click to toggle series visibility
+
 ## Component architecture
 
 The application follows a hierarchical component structure:
 
-### Core components
-- `LatencyPage`: Root component that provides layout and theme context
-- `MultiDeviceLatencyChart`: Main chart component with data processing and state management
-- `ExternalBrush`: Custom brush implementation for time range selection
+### Page components
+- `App.tsx`: Root application component with ThemeProvider and layout
+- `CombinedLatencyPage.tsx`: Main page displaying both Client and WAN latency charts with shared drawer
+
+### Core chart components
+- `MultiDeviceLatencyChart`: Client latency chart with multi-device support and band switching
+- `WanLatencyChart`: WAN latency chart with network performance metrics
+- `ResizableChartDrawer`: Shared drawer component with drag-and-drop chart reordering
+- `SimplifiedBrush`: Custom brush implementation for time range selection
+- `SortableChartContainer` / `SortableChartItem`: Drag-and-drop functionality for charts
 
 ### Theme system
 - `ThemeProvider`: Context provider for theme state and color schemes
@@ -110,35 +153,38 @@ The application follows a hierarchical component structure:
 - `ThemeContext`: Shared theme state and color definitions
 
 ### Data flow
-- Data is loaded and processed in `MultiDeviceLatencyChart`
-- Chart state (filters, selection, hover) is managed internally
+- Data is loaded independently in each chart component
+- Chart state (filters, selection, hover) is managed per-chart
+- Shared brush range is synchronized across charts in drawer view
 - Theme state is managed globally through context
-- Brush state is self-contained within `ExternalBrush`
+- Chart order and heights are persisted to localStorage
 
 ### State management
-- Theme: Global context
-- Chart data: Local state with data processing
-- Filters: Component-level state with device and band filtering
-- Brush: Isolated state with external event callbacks
+- **Global**: Theme context
+- **Page-level**: Drawer state, shared brush range, chart order, chart heights
+- **Component-level**: Chart data, filters, metric types, device selection
+- **Synchronized**: Brush state between main view and drawer view
 
 ## Known issues
 
 1. Memory leaks:
    - Resize observers may not be properly cleaned up
    - Event listeners might persist after component unmount
+   - Multiple chart instances in drawer maintain separate observers
 
 2. Performance issues:
    - Large datasets cause rendering delays
-   - Multiple charts affect overall performance
+   - Multiple charts in drawer affect overall performance
    - Theme changes trigger unnecessary re-renders
+   - Drag-and-drop reordering may cause momentary layout shifts
 
 3. Style issues:
    - Some styles are hardcoded and not theme-aware
    - CSS-in-JS performance impact
    - Duplicate style definitions
 
-4. Multiple chart instances:
-    - Current implementation creates separate resize observers for each chart
-   - Each chart maintains its own state and event handlers
-   - Multiple charts on the same page may cause performance degradation
-   - Recommendation: Implement shared resources pattern for multiple chart instances
+4. State synchronization:
+   - Brush state synchronization between main and drawer views has overhead
+   - Chart order persistence uses debounced localStorage writes
+   - Height changes trigger multiple state updates
+   - Recommendation: Implement more efficient state batching

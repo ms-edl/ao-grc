@@ -148,10 +148,11 @@ export function GraphLegendExtended({
               {metaValues.map((meta, index) => (
                 <React.Fragment key={index}>
                   {index > 0 && (
-                    <span className="text-content-tertiary">·</span>
+                    <span className="text-content-tertiary" style={{ transition: 'none' }}>·</span>
                   )}
                   <span 
                     className={meta.isActive ? 'text-content-primary' : 'text-content-tertiary'}
+                    style={{ transition: 'none' }}
                   >
                     {meta.value}
                   </span>

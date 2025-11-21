@@ -48,6 +48,16 @@ interface ChartDrawerHeaderProps {
    * Hide metric toggles (when controlled by global toggle)
    */
   hideMetricToggles?: boolean;
+  
+  /**
+   * Show more button
+   */
+  showMoreButton?: boolean;
+  
+  /**
+   * Callback when more button is clicked
+   */
+  onMoreClick?: () => void;
 }
 
 /**
@@ -67,6 +77,8 @@ export default function ChartDrawerHeader({
   dragHandleProps,
   isDragging = false,
   hideMetricToggles = false,
+  showMoreButton = true,
+  onMoreClick,
 }: ChartDrawerHeaderProps) {
   const handleMetricToggle = (metric: MetricType) => {
     if (!onMetricsChange) return;
@@ -97,33 +109,52 @@ export default function ChartDrawerHeader({
         {metricButton}
       </div>
       
-      {/* Right side: Min/Avg/Max Toggles + Actions */}
+      {/* Right side: Actions + Min/Avg/Max Toggles + More */}
       <div className="chart-header--drawer-right">
-        {/* Min/Avg/Max Toggles */}
-        {onMetricsChange && (
-          <div className="flex items-center gap-1">
-            <MetricToggle
-              label="Min"
-              isActive={selectedMetrics.includes('min')}
-              onClick={() => handleMetricToggle('min')}
-            />
-            <MetricToggle
-              label="Avg"
-              isActive={selectedMetrics.includes('avg')}
-              onClick={() => handleMetricToggle('avg')}
-            />
-            <MetricToggle
-              label="Max"
-              isActive={selectedMetrics.includes('max')}
-              onClick={() => handleMetricToggle('max')}
-            />
-          </div>
-        )}
-        
         {actions && (
           <>
             {actions}
+            
+            {/* Divider after actions (filters) */}
+            {onMetricsChange && !hideMetricToggles && <div className="drawer-button-separator" />}
           </>
+        )}
+        
+        {/* Min/Avg/Max Toggles */}
+        {onMetricsChange && !hideMetricToggles && (
+          <>
+            <div className="flex items-center gap-1">
+              <MetricToggle
+                label="Min"
+                isActive={selectedMetrics.includes('min')}
+                onClick={() => handleMetricToggle('min')}
+              />
+              <MetricToggle
+                label="Avg"
+                isActive={selectedMetrics.includes('avg')}
+                onClick={() => handleMetricToggle('avg')}
+              />
+              <MetricToggle
+                label="Max"
+                isActive={selectedMetrics.includes('max')}
+                onClick={() => handleMetricToggle('max')}
+              />
+            </div>
+            
+            {/* Divider after toggles */}
+            {showMoreButton && <div className="drawer-button-separator" />}
+          </>
+        )}
+        
+        {/* More Button */}
+        {showMoreButton && (
+          <button
+            type="button"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+            onClick={onMoreClick || (() => console.log('More options'))}
+          >
+            <Icon name="more-vertical" size={16} />
+          </button>
         )}
       </div>
     </div>

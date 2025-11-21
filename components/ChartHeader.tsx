@@ -6,6 +6,8 @@ import { DragHandle } from './ui/drag-handle';
 // Re-export AoBtnFilter for convenience
 export { AoBtnFilter } from './ui/ao-btn-filter';
 
+export type MetricType = 'min' | 'avg' | 'max';
+
 interface ChartHeaderProps {
   title: string;
   metricButton?: ReactNode;
@@ -13,6 +15,8 @@ interface ChartHeaderProps {
   showDragHandle?: boolean;
   dragHandleProps?: any; // Props from @dnd-kit useSortable
   isDragging?: boolean;
+  metricType?: MetricType;
+  onMetricTypeChange?: (type: MetricType) => void;
 }
 
 /**
@@ -20,7 +24,7 @@ interface ChartHeaderProps {
  * 
  * Provides consistent layout:
  * - Left: Title + optional metric selector dropdown
- * - Right: Optional action buttons (filters, maximize, etc.) + optional drag handle
+ * - Right: Optional metric type toggles + action buttons (filters, maximize, etc.) + optional drag handle
  */
 export default function ChartHeader({ 
   title, 
@@ -28,7 +32,9 @@ export default function ChartHeader({
   actions,
   showDragHandle = false,
   dragHandleProps,
-  isDragging = false
+  isDragging = false,
+  metricType,
+  onMetricTypeChange,
 }: ChartHeaderProps) {
   const [isHandleHovered, setIsHandleHovered] = useState(false);
 

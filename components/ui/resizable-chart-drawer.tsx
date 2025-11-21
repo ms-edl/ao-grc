@@ -34,7 +34,6 @@ interface ResizableChartDrawerProps {
   minWidth?: number     // Minimum width in pixels (default: 1080)
   closeButtonTooltip?: React.ReactNode  // Tooltip content for the close button
   bottomContent?: React.ReactNode  // Optional fixed content at bottom (e.g., global brush)
-  stickyXAxisContent?: React.ReactNode  // Optional sticky x-axis above brush
   availableWidgets?: AvailableWidget[]  // Available widgets to show in sidebar
   onWidgetSelect?: (widgetId: string) => void  // Handler for widget selection
   metricType?: MetricType  // Current metric type (min/avg/max)
@@ -62,7 +61,6 @@ export function ResizableChartDrawer({
   minWidth = 1080,
   closeButtonTooltip,
   bottomContent,
-  stickyXAxisContent,
   availableWidgets = [],
   onWidgetSelect,
   metricType,
@@ -186,7 +184,6 @@ export function ResizableChartDrawer({
         {/* Outer wrapper for Vaul animations */}
         <DrawerPrimitive.Content
           className="fixed inset-0 z-50 pointer-events-none flex"
-          style={{ padding: '8px' }}
         >
           {/* Resizable Container - controls the drawer width */}
           <ResizablePanelGroup direction="horizontal">
@@ -231,11 +228,11 @@ export function ResizableChartDrawer({
                   "outline-none transition-all duration-200"
                 )}
                 style={{
-                  borderRadius: '16px',
                   border: isResizeHandleHovered 
                     ? '1px solid rgb(var(--content-tertiary))'
                     : '1px solid rgb(var(--border-border-flat))',
-                  overflow: 'hidden',
+                  overflowX: 'hidden',
+                  overflowY: 'visible',
                 }}
               >
                 {/* Header */}
@@ -357,35 +354,38 @@ export function ResizableChartDrawer({
                   </div>
                 </div>
 
-                {/* Chart Tags Section */}
-                {(chartTags && chartTags.length > 0) || onAddChart ? (
-                  <div className="px-4 py-3 border-b border-gradient-border flex-shrink-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Add Chart Button */}
-                      {onAddChart && (
-                        <button
-                          type="button"
-                          onClick={handleAddChartClick}
-                          className="flex-shrink-0 flex items-center justify-center transition-opacity hover:opacity-80"
-                          style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '8px',
-                            backgroundImage: `
-                              linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
-                              linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
-                            `,
-                            backgroundOrigin: 'border-box',
-                            backgroundClip: 'padding-box, border-box',
-                            border: '1px solid transparent',
-                          }}
-                          aria-label="Add chart"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 3.5V12.5M3.5 8H12.5" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>
-                          </svg>
-                        </button>
-                      )}
+                {/* Content */}
+                <div className="flex-1 overflow-hidden">
+                  <div className="h-full overflow-y-auto" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
+                    <div className="drawer-wrapper p-6 pb-[120px]">
+                      {/* Chart Tags Section */}
+                      {((chartTags && chartTags.length > 0) || onAddChart) && (
+                        <div className="flex items-center gap-2 flex-wrap mb-6">
+                          {/* Add Chart Button */}
+                          {onAddChart && (
+                            <button
+                              type="button"
+                              onClick={handleAddChartClick}
+                              className="flex-shrink-0 flex items-center justify-center transition-opacity hover:opacity-80"
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '8px',
+                                backgroundImage: `
+                                  linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
+                                  linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end))
+                                `,
+                                backgroundOrigin: 'border-box',
+                                backgroundClip: 'padding-box, border-box',
+                                border: '1px solid transparent',
+                              }}
+                              aria-label="Add chart"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 3.5V12.5M3.5 8H12.5" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            </button>
+                          )}
 
                       {/* Chart Tags */}
                       {chartTags?.map((tag) => (
@@ -410,93 +410,31 @@ export function ResizableChartDrawer({
                           )}
                         </div>
                       ))}
-
-                      {/* Metric Type Toggle (Min/Avg/Max) - Right side */}
-                      {metricType && onMetricTypeChange && (
-                        <div className="ml-auto inline-flex items-center gap-1">
-                          {(['min', 'avg', 'max'] as MetricType[]).map((type) => (
-                            <button
-                              key={type}
-                              type="button"
-                              onClick={() => onMetricTypeChange(type)}
-                              className="transition-opacity hover:opacity-80"
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                lineHeight: '16px',
-                                fontWeight: 500,
-                                color: metricType === type ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
-                                backgroundColor: metricType === type ? 'rgb(var(--surface-action-hover))' : 'transparent',
-                              }}
-                            >
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </button>
-                          ))}
                         </div>
                       )}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
-                  <div className="drawer-wrapper p-6 pb-[120px]">
-                    {children}
-                    
-                    {/* Add Widget Button */}
-                    <button
-                      type="button"
-                      onClick={handleAddChartClick}
-                      className="drawer-add-widget-button"
-                      aria-label="Add widget"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8 3.5V12.5M3.5 8H12.5" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>
-                      </svg>
-                      <span 
-                        className="text-content-primary font-medium"
-                        style={{ fontSize: '14px', lineHeight: '20px' }}
+                      
+                      {children}
+                      
+                      {/* Add Widget Button */}
+                      <button
+                        type="button"
+                        onClick={handleAddChartClick}
+                        className="drawer-add-widget-button"
+                        aria-label="Add widget"
                       >
-                        Add widget
-                      </span>
-                    </button>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8 3.5V12.5M3.5 8H12.5" stroke="rgb(var(--content-primary))" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        <span 
+                          className="text-content-primary font-medium"
+                          style={{ fontSize: '14px', lineHeight: '20px' }}
+                        >
+                          Add widget
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Sticky X-Axis (positioned above brush) */}
-                {stickyXAxisContent && (
-                  <div 
-                    className="flex-shrink-0 absolute bottom-0 left-0 right-0"
-                    style={{ 
-                      height: '140px',  // 40px for axis + 100px for brush
-                      overflow: 'visible',
-                      zIndex: 1000,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {/* Gradient Background Layer */}
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        background: 'linear-gradient(to bottom, rgb(var(--surface-section) / 0) 0%, rgb(var(--surface-section) / 0.8) 40%, rgb(var(--surface-section) / 1) 100%)',
-                        zIndex: 1,
-                      }}
-                    />
-                    {/* X-Axis Content Layer */}
-                    <div 
-                      className="absolute top-0 left-0 right-0 h-[40px]"
-                      style={{ 
-                        zIndex: 2, 
-                        paddingLeft: '6rem', 
-                        paddingRight: '6rem',
-                        pointerEvents: 'auto',
-                      }}
-                    >
-                      {stickyXAxisContent}
-                    </div>
-                  </div>
-                )}
 
                 {/* Bottom Content (Fixed) */}
                 {bottomContent && (
@@ -526,7 +464,7 @@ export function ResizableChartDrawer({
                 {/* Widget Selector Sidebar */}
                 {availableWidgets.length > 0 && (
                   <div
-                    className="absolute top-0 left-0 h-full bg-surface-section flex flex-col transition-transform duration-300 ease-in-out"
+                    className="absolute top-0 left-0 h-full bg-surface-section flex flex-col"
                     style={{
                       width: '256px',
                       backgroundImage: `
@@ -536,9 +474,10 @@ export function ResizableChartDrawer({
                       backgroundOrigin: 'border-box',
                       backgroundClip: 'padding-box, border-box',
                       borderRight: '1px solid transparent',
-                      zIndex: isSidebarOpen ? 10 : -1,
+                      zIndex: 10,
                       transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
                       pointerEvents: isSidebarOpen ? 'auto' : 'none',
+                      transition: 'transform 300ms ease-in-out',
                     }}
                   >
                     {/* Sidebar Header */}

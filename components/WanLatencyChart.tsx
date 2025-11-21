@@ -113,6 +113,10 @@ interface WanLatencyChartProps {
    */
   metricType?: 'min' | 'avg' | 'max';
   /**
+   * Callback when metric type changes
+   */
+  onMetricTypeChange?: (type: 'min' | 'avg' | 'max') => void;
+  /**
    * Props from @dnd-kit for drag handle
    */
   dragHandleProps?: any;
@@ -120,10 +124,6 @@ interface WanLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
-  /**
-   * Hide the x-axis (for use with shared sticky axis)
-   */
-  hideXAxis?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -141,7 +141,7 @@ export default function WanLatencyChart({
   dragHandleProps,
   isDragging = false,
   metricType,
-  hideXAxis = false,
+  onMetricTypeChange,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -650,25 +650,30 @@ export default function WanLatencyChart({
 
       {/* Metric toggle - only show for default view (non-drawer) */}
       {variant === 'default' && (
-        <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
+        <div className="flex items-center gap-1">
           {(["min", "avg", "max"] as MetricType[]).map((metric) => {
             const isActive = activeMetric === metric;
             return (
               <button
                 key={metric}
-                className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
-                style={{ 
-                  paddingLeft: 12, 
-                  paddingRight: 12,
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  height: '100%',
-                  borderRadius: 4,
-                  fontWeight: isActive ? 500 : 400,
-                  backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
-                  color: isActive ? undefined : 'rgb(var(--content-tertiary))'
+                type="button"
+                className="transition-opacity hover:opacity-80"
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  lineHeight: '16px',
+                  fontWeight: 500,
+                  color: isActive ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
+                  backgroundColor: isActive ? 'rgb(var(--surface-action-hover))' : 'transparent',
                 }}
-                onClick={() => setSelectedMetric(metric)}
+                onClick={() => {
+                  if (onMetricTypeChange) {
+                    onMetricTypeChange(metric);
+                  } else {
+                    setSelectedMetric(metric);
+                  }
+                }}
               >
                 {metric.charAt(0).toUpperCase() + metric.slice(1)}
               </button>
@@ -710,7 +715,6 @@ export default function WanLatencyChart({
                 interval={0}
                 ticks={xTicks as any}
                 tick={renderTick as any}
-                hide={hideXAxis}
               />
               <YAxis
                 yAxisId="left"
@@ -1059,7 +1063,7 @@ export default function WanLatencyChart({
         avg: stats.avg,
         max: stats.max,
         isHidden: hiddenMetrics.has(metricKey),
-        activeMetric: selectedMetric,
+        activeMetric: activeMetric,
       };
     });
     
@@ -1113,26 +1117,21 @@ export default function WanLatencyChart({
           {/* Header */}
           <ChartDrawerHeader
             title="WAN history"
-            metricButton={<MetricButton label="Latency" />}
+            metricButton={metricType === undefined ? <MetricButton label="Latency" /> : undefined}
             selectedMetrics={[activeMetric]}
-            onMetricsChange={metricType === undefined ? (metrics) => {
+            onMetricsChange={onMetricTypeChange ? (metrics) => {
+              if (metrics.length > 0) {
+                onMetricTypeChange(metrics[metrics.length - 1] as MetricType);
+              }
+            } : metricType === undefined ? (metrics) => {
               if (metrics.length > 0) {
                 setSelectedMetric(metrics[metrics.length - 1] as MetricType);
               }
             } : undefined}
-            hideMetricToggles={metricType !== undefined}
+            hideMetricToggles={false}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
-            actions={
-              <button
-                type="button"
-                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                onClick={() => console.log('More options')}
-              >
-                <Icon name="more-vertical" size={16} />
-              </button>
-            }
           />
           
           {/* Chart */}
@@ -1156,7 +1155,6 @@ export default function WanLatencyChart({
                     interval={0}
                     ticks={xTicks as any}
                     tick={renderTick as any}
-                    hide={hideXAxis}
                   />
                   <YAxis
                     yAxisId="left"
@@ -1417,6 +1415,8 @@ export default function WanLatencyChart({
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
+            metricType={metricType}
+            onMetricTypeChange={onMetricTypeChange}
             actions={variant === 'default' ? (
               <MaximizeButton onClick={() => {
                 if (onMaximize) {

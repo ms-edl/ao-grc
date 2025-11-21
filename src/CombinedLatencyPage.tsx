@@ -8,7 +8,6 @@ import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
 import { ChartItemConfig } from './types';
-import { SharedStickyXAxis } from '../components/SharedStickyXAxis';
 
 /**
  * CombinedLatencyPage
@@ -27,8 +26,13 @@ import { SharedStickyXAxis } from '../components/SharedStickyXAxis';
 export default function CombinedLatencyPage() {
   const [isSharedDrawerOpen, setIsSharedDrawerOpen] = useState(false);
   
-  // Metric type state for drawer charts (min/avg/max)
-  const [metricType, setMetricType] = useState<MetricType>('avg');
+  // Individual metric type states for each chart
+  const [multiDeviceMetricType, setMultiDeviceMetricType] = useState<MetricType>('avg');
+  const [wanMetricType, setWanMetricType] = useState<MetricType>('avg');
+  
+  // Page-level chart metric types (for main view)
+  const [multiDevicePageMetricType, setMultiDevicePageMetricType] = useState<MetricType>('avg');
+  const [wanPageMetricType, setWanPageMetricType] = useState<MetricType>('avg');
   
   // Track data lengths for global brush
   const [multiDeviceDataLength, setMultiDeviceDataLength] = useState(0);
@@ -41,12 +45,6 @@ export default function CombinedLatencyPage() {
     const stored = localStorage.getItem('chartOrder');
     return stored ? JSON.parse(stored) : ['multidevice', 'wan'];
   });
-
-  // Shared margins for x-axis alignment
-  const sharedMargins = useMemo(() => ({
-    left: 50,   // Y-axis width
-    right: 32,  // Label spacing
-  }), []);
 
   // Available widgets for the sidebar
   const availableWidgets: AvailableWidget[] = useMemo(() => [
@@ -219,8 +217,8 @@ export default function CombinedLatencyPage() {
           height={chartHeights.multidevice}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
-          metricType={metricType}
-          hideXAxis={true}
+          metricType={multiDeviceMetricType}
+          onMetricTypeChange={setMultiDeviceMetricType}
         />
       ),
     },
@@ -237,12 +235,12 @@ export default function CombinedLatencyPage() {
           height={chartHeights.wan}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
-          metricType={metricType}
-          hideXAxis={true}
+          metricType={wanMetricType}
+          onMetricTypeChange={setWanMetricType}
         />
       ),
     },
-  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, metricType]);
+  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, multiDeviceMetricType, wanMetricType]);
 
   // Render charts in order
   const orderedCharts = useMemo(() => {
@@ -258,6 +256,8 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleMultiDeviceDataLoad}
+            metricType={multiDevicePageMetricType}
+            onMetricTypeChange={setMultiDevicePageMetricType}
           />
         </div>
 
@@ -267,6 +267,8 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleWanDataLoad}
+            metricType={wanPageMetricType}
+            onMetricTypeChange={setWanPageMetricType}
           />
         </div>
       </div>
@@ -289,20 +291,6 @@ export default function CombinedLatencyPage() {
         defaultSize={60}
         minSize={40}
         maxSize={90}
-        metricType={metricType}
-        onMetricTypeChange={setMetricType}
-        stickyXAxisContent={
-          brushData.length > 0 ? (
-            <SharedStickyXAxis
-              data={brushData}
-              xKey="x"
-              startIndex={sharedRange.startIndex}
-              endIndex={sharedRange.endIndex}
-              marginLeft={sharedMargins.left}
-              marginRight={sharedMargins.right}
-            />
-          ) : null
-        }
         bottomContent={
           brushData.length > 0 ? (
             <SimplifiedBrush

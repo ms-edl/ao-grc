@@ -157,6 +157,10 @@ interface MultiDeviceLatencyChartProps {
    */
   metricType?: 'min' | 'avg' | 'max';
   /**
+   * Callback when metric type changes
+   */
+  onMetricTypeChange?: (type: 'min' | 'avg' | 'max') => void;
+  /**
    * Props from @dnd-kit for drag handle
    */
   dragHandleProps?: any;
@@ -164,10 +168,6 @@ interface MultiDeviceLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
-  /**
-   * Hide the x-axis (for use with shared sticky axis)
-   */
-  hideXAxis?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -185,7 +185,7 @@ export default function MultiDeviceLatencyChart({
   dragHandleProps,
   isDragging = false,
   metricType,
-  hideXAxis = false,
+  onMetricTypeChange,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -1209,7 +1209,7 @@ export default function MultiDeviceLatencyChart({
         avg: `${stats.avg}ms`,
         max: `${stats.max}ms`,
         isHidden: hiddenDevices.has(id),
-        activeMetric: selectedMetric, // Pass the selected metric
+        activeMetric: activeMetric, // Pass the active metric (respects metricType prop)
       };
     });
     
@@ -1288,14 +1288,18 @@ export default function MultiDeviceLatencyChart({
           {/* Header */}
           <ChartDrawerHeader
             title="Client history"
-            metricButton={<MetricButton label="Latency" />}
+            metricButton={metricType === undefined ? <MetricButton label="Latency" /> : undefined}
             selectedMetrics={[activeMetric]}
-            onMetricsChange={metricType === undefined ? (metrics) => {
+            onMetricsChange={onMetricTypeChange ? (metrics) => {
+              if (metrics.length > 0) {
+                onMetricTypeChange(metrics[metrics.length - 1] as MetricType);
+              }
+            } : metricType === undefined ? (metrics) => {
               if (metrics.length > 0) {
                 setSelectedMetric(metrics[metrics.length - 1] as MetricType);
               }
             } : undefined}
-            hideMetricToggles={metricType !== undefined}
+            hideMetricToggles={false}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
@@ -1316,13 +1320,6 @@ export default function MultiDeviceLatencyChart({
                   tooltipText="Client devices"
                   onClick={() => { setIsFilterOpen(true); setFilterPanel("clients"); }}
                 />
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                  onClick={() => console.log('More options')}
-                >
-                  <Icon name="more-vertical" size={16} />
-                </button>
               </>
             }
           />
@@ -1348,7 +1345,6 @@ export default function MultiDeviceLatencyChart({
                     interval={0}
                     ticks={xTicks as any}
                     tick={renderXAxisTick as any}
-                    hide={hideXAxis}
                   />
                   <YAxis
                     tickMargin={8}
@@ -1553,6 +1549,8 @@ export default function MultiDeviceLatencyChart({
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
+            metricType={metricType}
+            onMetricTypeChange={onMetricTypeChange}
             actions={
               <>
                 {/* Filter buttons group */}
@@ -1855,25 +1853,30 @@ export default function MultiDeviceLatencyChart({
 
           {/* Metric toggle - only show for default view (non-drawer) */}
           {variant === 'default' && (
-            <div className="flex items-center chart-gradient-border rounded-md" style={{ gap: 0, height: 24, backgroundColor: 'rgb(var(--surface-tile))' }}>
+            <div className="flex items-center gap-1">
               {(["min", "avg", "max"] as MetricType[]).map((metric) => {
                 const isActive = activeMetric === metric;
                 return (
                   <button
                     key={metric}
-                    className={isActive ? "transition-colors text-toggle-label-active" : "transition-colors"}
-                    style={{ 
-                      paddingLeft: 12, 
-                      paddingRight: 12,
-                      fontSize: 13,
-                      fontFamily: 'inherit',
-                      height: '100%',
-                      borderRadius: 4,
-                      fontWeight: isActive ? 500 : 400,
-                      backgroundColor: isActive ? 'rgb(var(--toggle-bg-active))' : 'rgb(var(--surface-tile))',
-                      color: isActive ? undefined : 'rgb(var(--content-tertiary))'
+                    type="button"
+                    className="transition-opacity hover:opacity-80"
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      lineHeight: '16px',
+                      fontWeight: 500,
+                      color: isActive ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
+                      backgroundColor: isActive ? 'rgb(var(--surface-action-hover))' : 'transparent',
                     }}
-                    onClick={() => setSelectedMetric(metric)}
+                    onClick={() => {
+                      if (onMetricTypeChange) {
+                        onMetricTypeChange(metric);
+                      } else {
+                        setSelectedMetric(metric);
+                      }
+                    }}
                   >
                     {metric.charAt(0).toUpperCase() + metric.slice(1)}
                   </button>
@@ -1905,7 +1908,6 @@ export default function MultiDeviceLatencyChart({
                 interval={0}
                 ticks={xTicks as any}
                 tick={renderXAxisTick as any}
-                hide={hideXAxis}
               />
               <YAxis
                 tickMargin={8}
@@ -2149,6 +2151,8 @@ export default function MultiDeviceLatencyChart({
                 showDragHandle={showDragHandle}
                 dragHandleProps={dragHandleProps}
                 isDragging={isDragging}
+                metricType={metricType}
+                onMetricTypeChange={onMetricTypeChange}
                 actions={
                   <>
                     {/* Filter buttons group */}
