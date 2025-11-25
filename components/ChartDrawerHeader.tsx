@@ -111,13 +111,11 @@ export default function ChartDrawerHeader({
       
       {/* Right side: Actions + Min/Avg/Max Toggles + More */}
       <div className="chart-header--drawer-right">
-        {actions && (
-          <>
-            {actions}
-            
-            {/* Divider after actions (filters) */}
-            {onMetricsChange && !hideMetricToggles && <div className="drawer-button-separator" />}
-          </>
+        {actions}
+        
+        {/* Divider after actions (filters) */}
+        {actions && (onMetricsChange && !hideMetricToggles || showMoreButton) && (
+          <div className="drawer-button-separator" />
         )}
         
         {/* Min/Avg/Max Toggles */}

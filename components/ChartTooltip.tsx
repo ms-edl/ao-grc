@@ -170,7 +170,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                   </span>
 
                   {/* Band - right aligned (client chart only) */}
-                  {showBand && item.band && (
+                  {showBand && (
                     <span
                       className="text-content-tertiary"
                       style={{
@@ -179,7 +179,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                         minWidth: 60
                       }}
                     >
-                      {item.band}
+                      {item.band || 'N/A'}
                     </span>
                   )}
                 </div>
@@ -233,7 +233,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                   </span>
 
                   {/* Band - right aligned (client chart only) */}
-                  {showBand && item.band && hasValue && (
+                  {showBand && (
                     <span
                       className="text-content-tertiary"
                       style={{
@@ -242,7 +242,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                         minWidth: 60
                       }}
                     >
-                      {item.band}
+                      {item.band || 'N/A'}
                     </span>
                   )}
                 </div>

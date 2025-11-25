@@ -34,6 +34,7 @@ export function SortableChartItem({ id, children }: SortableChartItemProps) {
     transition: transition || 'transform 200ms ease-in-out',
     opacity: isDragging ? 0.5 : 1,
     position: 'relative' as const,
+    overflow: 'visible' as const,
   };
 
   // Clone children and pass drag handle props

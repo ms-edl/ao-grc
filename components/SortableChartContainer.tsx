@@ -71,7 +71,7 @@ export function SortableChartContainer({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={chartIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-4">{children}</div>
+        <div className="space-y-4" style={{ overflow: 'visible' }}>{children}</div>
       </SortableContext>
     </DndContext>
   );

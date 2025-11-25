@@ -325,7 +325,7 @@ export function ChartDrawer({
               {/* Sidebar Header */}
               <div className="flex items-center justify-between p-4 border-b border-gradient-border flex-shrink-0">
                 <h3 className="text-content-primary font-semibold" style={{ fontSize: '14px', lineHeight: '20px' }}>
-                  Add graph
+                  Add widget
                 </h3>
                 <button
                   onClick={() => setIsSidebarOpen(false)}

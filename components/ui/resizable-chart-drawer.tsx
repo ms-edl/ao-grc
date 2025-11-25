@@ -356,8 +356,8 @@ export function ResizableChartDrawer({
 
                 {/* Content */}
                 <div className="flex-1 overflow-hidden">
-                  <div className="h-full overflow-y-auto" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
-                    <div className="drawer-wrapper p-6 pb-[120px]">
+                  <div className="h-full overflow-y-auto overflow-x-visible" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
+                    <div className="drawer-wrapper p-6 pb-[120px]" style={{ overflow: 'visible' }}>
                       {/* Chart Tags Section */}
                       {((chartTags && chartTags.length > 0) || onAddChart) && (
                         <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -455,7 +455,14 @@ export function ResizableChartDrawer({
                       }}
                     />
                     {/* Brush Content Layer */}
-                    <div className="py-4 h-full relative" style={{ zIndex: 2, paddingLeft: '6rem', paddingRight: '6rem' }}>
+                    <div 
+                      className="py-4 h-full relative transition-all duration-300" 
+                      style={{ 
+                        zIndex: 2, 
+                        paddingLeft: isSidebarOpen ? 'calc(256px + 1.5rem)' : '6rem', 
+                        paddingRight: '6rem' 
+                      }}
+                    >
                       {bottomContent}
                     </div>
                   </div>
@@ -474,7 +481,7 @@ export function ResizableChartDrawer({
                       backgroundOrigin: 'border-box',
                       backgroundClip: 'padding-box, border-box',
                       borderRight: '1px solid transparent',
-                      zIndex: 10,
+                      zIndex: 50,
                       transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
                       pointerEvents: isSidebarOpen ? 'auto' : 'none',
                       transition: 'transform 300ms ease-in-out',
@@ -483,7 +490,7 @@ export function ResizableChartDrawer({
                     {/* Sidebar Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gradient-border flex-shrink-0">
                       <h3 className="text-content-primary font-semibold" style={{ fontSize: '14px', lineHeight: '20px' }}>
-                        Add graph
+                        Add widget
                       </h3>
                       <button
                         onClick={() => setIsSidebarOpen(false)}

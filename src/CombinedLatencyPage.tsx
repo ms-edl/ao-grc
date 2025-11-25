@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import MultiDeviceLatencyChart from '../components/MultiDeviceLatencyChart';
 import WanLatencyChart from '../components/WanLatencyChart';
-import { ResizableChartDrawer, MetricType } from '../components/ui/resizable-chart-drawer';
+import { ResizableChartDrawer } from '../components/ui/resizable-chart-drawer';
 import { AvailableWidget } from '../components/ui/chart-drawer';
 import { SyncedChartProvider } from '../components/SyncedChartContext';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
@@ -25,14 +25,6 @@ import { ChartItemConfig } from './types';
  */
 export default function CombinedLatencyPage() {
   const [isSharedDrawerOpen, setIsSharedDrawerOpen] = useState(false);
-  
-  // Individual metric type states for each chart
-  const [multiDeviceMetricType, setMultiDeviceMetricType] = useState<MetricType>('avg');
-  const [wanMetricType, setWanMetricType] = useState<MetricType>('avg');
-  
-  // Page-level chart metric types (for main view)
-  const [multiDevicePageMetricType, setMultiDevicePageMetricType] = useState<MetricType>('avg');
-  const [wanPageMetricType, setWanPageMetricType] = useState<MetricType>('avg');
   
   // Track data lengths for global brush
   const [multiDeviceDataLength, setMultiDeviceDataLength] = useState(0);
@@ -138,6 +130,9 @@ export default function CombinedLatencyPage() {
     startIndex: 0,
     endIndex: Math.max(0, Math.min(24 * 7 - 1, maxDataLength - 1))
   });
+  
+  // Track if brush is being hovered
+  const [isBrushHovered, setIsBrushHovered] = useState(false);
 
   // Update shared range when max data length changes
   useEffect(() => {
@@ -214,11 +209,10 @@ export default function CombinedLatencyPage() {
           variant="drawer" 
           enableSync={true}
           sharedRange={sharedRange}
+          isBrushAdjusting={isBrushHovered}
           height={chartHeights.multidevice}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
-          metricType={multiDeviceMetricType}
-          onMetricTypeChange={setMultiDeviceMetricType}
         />
       ),
     },
@@ -232,15 +226,14 @@ export default function CombinedLatencyPage() {
           variant="drawer" 
           enableSync={true}
           sharedRange={sharedRange}
+          isBrushAdjusting={isBrushHovered}
           height={chartHeights.wan}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
-          metricType={wanMetricType}
-          onMetricTypeChange={setWanMetricType}
         />
       ),
     },
-  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, multiDeviceMetricType, wanMetricType]);
+  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, isBrushHovered]);
 
   // Render charts in order
   const orderedCharts = useMemo(() => {
@@ -256,8 +249,6 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleMultiDeviceDataLoad}
-            metricType={multiDevicePageMetricType}
-            onMetricTypeChange={setMultiDevicePageMetricType}
           />
         </div>
 
@@ -267,8 +258,6 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleWanDataLoad}
-            metricType={wanPageMetricType}
-            onMetricTypeChange={setWanPageMetricType}
           />
         </div>
       </div>
@@ -301,6 +290,7 @@ export default function CombinedLatencyPage() {
               minSelectionPoints={6}
               maxSelectionPoints={24 * 15}
               onChange={handleBrushChange}
+              onHoverChange={setIsBrushHovered}
             />
           ) : null
         }

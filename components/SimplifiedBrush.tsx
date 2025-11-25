@@ -35,6 +35,7 @@ export interface SimplifiedBrushProps {
   minSelectionPoints: number;
   maxSelectionPoints: number;
   onChange: (range: { startIndex: number; endIndex: number }) => void;
+  onHoverChange?: (isHovering: boolean) => void;
 }
 
 const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' | 'right' }> = ({ label, visible, side }) => {
@@ -75,6 +76,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
   minSelectionPoints,
   maxSelectionPoints,
   onChange,
+  onHoverChange,
 }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState<"left" | "right" | "range" | null>(null);
@@ -169,7 +171,9 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
     onChange({ startIndex: s, endIndex: en });
   }, [dragging, localStart, localEnd, total, minSelectionPoints, maxSelectionPoints, indexFromPx, onChange]);
 
-  const handleMouseUp = useCallback(() => setDragging(null), []);
+  const handleMouseUp = useCallback(() => {
+    setDragging(null);
+  }, []);
 
   useEffect(() => {
     if (!dragging) return;
@@ -223,7 +227,11 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
   }, [data.length, trackWidth, total]);
 
   return (
-    <div className="mt-4">
+    <div 
+      className="mt-4"
+      onMouseEnter={() => onHoverChange?.(true)}
+      onMouseLeave={() => onHoverChange?.(false)}
+    >
       <div ref={trackRef} className="relative w-full" style={{ height: 64, userSelect: 'none' }}>
         {/* Track with simplified tick visualization */}
         <div 
@@ -299,7 +307,10 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
             width: 24,
             height: 24,
           }}
-          onMouseDown={(e) => { e.preventDefault(); setDragging("left"); }}
+          onMouseDown={(e) => { 
+            e.preventDefault(); 
+            setDragging("left"); 
+          }}
           onMouseEnter={() => setHoverLeft(true)}
           onMouseLeave={() => setHoverLeft(false)}
         >
@@ -326,7 +337,10 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
             width: 24,
             height: 24,
           }}
-          onMouseDown={(e) => { e.preventDefault(); setDragging("right"); }}
+          onMouseDown={(e) => { 
+            e.preventDefault(); 
+            setDragging("right"); 
+          }}
           onMouseEnter={() => setHoverRight(true)}
           onMouseLeave={() => setHoverRight(false)}
         >

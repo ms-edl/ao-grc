@@ -58,6 +58,21 @@ interface ChartDrawerLegendProps {
     band?: string;  // for client chart
   }>;
   
+  /**
+   * Selected metrics for toggle buttons (min/avg/max)
+   */
+  selectedMetrics?: ('min' | 'avg' | 'max')[];
+  
+  /**
+   * Callback when metrics toggle changes
+   */
+  onMetricsChange?: (metrics: ('min' | 'avg' | 'max')[]) => void;
+  
+  /**
+   * Whether the brush is currently being adjusted
+   */
+  isBrushAdjusting?: boolean;
+  
   className?: string;
 }
 
@@ -83,6 +98,9 @@ export function ChartDrawerLegend({
   onMouseLeave,
   timestamp,
   liveValues,
+  selectedMetrics = ['avg'],
+  onMetricsChange,
+  isBrushAdjusting = false,
   className = '',
 }: ChartDrawerLegendProps) {
   // Format timestamp for display
@@ -99,16 +117,36 @@ export function ChartDrawerLegend({
         hour12: false,
       });
     } else if (timestamp.type === 'range' && timestamp.startDate && timestamp.endDate) {
-      // Show range: "Aug 13 - Aug 19"
-      const start = timestamp.startDate.toLocaleDateString('en-US', {
+      const startDate = timestamp.startDate.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
-      const end = timestamp.endDate.toLocaleDateString('en-US', {
+      const endDate = timestamp.endDate.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
-      return `${start} - ${end}`;
+      
+      const startTime = timestamp.startDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const endTime = timestamp.endDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      
+      // Check if start and end are on the same day
+      const sameDay = startDate === endDate;
+      
+      if (sameDay) {
+        // Same day: "Aug 15, 08:00 - 16:00"
+        return `${startDate}, ${startTime} - ${endTime}`;
+      } else {
+        // Different days: "Aug 13, 08:00 - Aug 15, 16:00"
+        return `${startDate}, ${startTime} - ${endDate}, ${endTime}`;
+      }
     }
     
     return null;
@@ -117,14 +155,52 @@ export function ChartDrawerLegend({
   const timestampText = formatTimestamp();
   const isHoveringPoint = timestamp?.type === 'point';
   
+  // Handle metric toggle (for Min/Avg/Max buttons)
+  const handleMetricToggle = (metric: 'min' | 'avg' | 'max') => {
+    if (!onMetricsChange) return;
+    
+    const isSelected = selectedMetrics.includes(metric);
+    
+    if (isSelected) {
+      // Remove if selected (but keep at least one)
+      if (selectedMetrics.length > 1) {
+        onMetricsChange(selectedMetrics.filter(m => m !== metric));
+      }
+    } else {
+      // Add if not selected
+      onMetricsChange([...selectedMetrics, metric]);
+    }
+  };
+  
   return (
     <div className={`sidebar-legend ${className}`}>
       {/* Timestamp Header */}
       {timestampText && (
         <div className="sidebar-legend-timestamp">
-          <div className={`text-xs font-medium ${isHoveringPoint ? 'text-content-primary' : 'text-content-tertiary'}`}>
+          <div className={`text-xs font-medium ${isBrushAdjusting ? 'text-content-primary' : 'text-content-tertiary'}`}>
             {timestampText}
           </div>
+        </div>
+      )}
+      
+      {/* Min/Avg/Max Toggles Section */}
+      {onMetricsChange && !isHoveringPoint && (
+        <div className="sidebar-legend-metric-toggles">
+          <MetricToggle
+            label="Min"
+            isActive={selectedMetrics.includes('min')}
+            onClick={() => handleMetricToggle('min')}
+          />
+          <MetricToggle
+            label="Avg"
+            isActive={selectedMetrics.includes('avg')}
+            onClick={() => handleMetricToggle('avg')}
+          />
+          <MetricToggle
+            label="Max"
+            isActive={selectedMetrics.includes('max')}
+            onClick={() => handleMetricToggle('max')}
+          />
         </div>
       )}
       
@@ -229,6 +305,36 @@ export function ChartDrawerLegend({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * MetricToggle - Individual metric toggle button
+ */
+interface MetricToggleProps {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function MetricToggle({ label, isActive, onClick }: MetricToggleProps) {
+  return (
+    <button
+      type="button"
+      className="transition-opacity hover:opacity-80"
+      style={{
+        padding: '4px 8px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        lineHeight: '16px',
+        fontWeight: 500,
+        color: isActive ? 'rgb(var(--content-primary))' : 'rgb(var(--content-tertiary))',
+        backgroundColor: isActive ? 'rgb(var(--surface-action-hover))' : 'transparent',
+      }}
+      onClick={onClick}
+    >
+      {label}
+    </button>
   );
 }
 

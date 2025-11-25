@@ -124,6 +124,10 @@ interface WanLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
+  /**
+   * Whether the brush is currently being adjusted
+   */
+  isBrushAdjusting?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -142,6 +146,7 @@ export default function WanLatencyChart({
   isDragging = false,
   metricType,
   onMetricTypeChange,
+  isBrushAdjusting = false,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -175,9 +180,8 @@ export default function WanLatencyChart({
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
-  // === Chart hover state (for sidebar live values) ===
-  const [hoveredChartTimestamp, setHoveredChartTimestamp] = useState<string | null>(null);
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+  // Note: Chart hover state removed - sidebar no longer shows hover timestamps or live values
+  // Tooltips now handle all hover interactions
 
   // === Tooltip sync state ===
   const syncContext = enableSync ? useSyncedChart() : undefined;
@@ -504,13 +508,7 @@ export default function WanLatencyChart({
     }
     }
     
-    // Track hover for sidebar updates (in drawer mode)
-    if (variant === 'drawer' && state && state.activeTooltipIndex !== undefined) {
-      setHoveredChartIndex(state.activeTooltipIndex);
-      if (aggregatedData[state.activeTooltipIndex]) {
-        setHoveredChartTimestamp(aggregatedData[state.activeTooltipIndex].x);
-      }
-    }
+    // Note: Removed hover timestamp tracking - sidebar no longer updates on hover
   }, [enableSync, syncContext, aggregatedData, variant]);
 
   const handleChartMouseLeave = useCallback(() => {
@@ -518,69 +516,22 @@ export default function WanLatencyChart({
     syncContext.setSyncedTimestamp(null);
     }
     
-    // Clear hover state
-    if (variant === 'drawer') {
-      setHoveredChartIndex(null);
-      setHoveredChartTimestamp(null);
-    }
+    // Note: Removed hover timestamp clearing - no longer tracked
   }, [enableSync, syncContext, variant]);
 
-  // Calculate active index from synced timestamp
-  const syncedActiveIndex = useMemo(() => {
-    if (!enableSync || !syncContext || !syncContext.syncedTimestamp) {
-      return null;
-    }
-    return findClosestTimestampIndex(aggregatedData, syncContext.syncedTimestamp);
-  }, [enableSync, syncContext, syncContext?.syncedTimestamp, aggregatedData]);
+  // Note: syncedActiveIndex removed - no longer needed since sidebar doesn't show live hover values
 
-  // Determine the effective index to use for sidebar (synced or local hover)
-  const effectiveHoverIndex = useMemo(() => {
-    if (variant !== 'drawer') return null;
-    // In drawer mode with sync enabled, use synced index if available, otherwise use local hover
-    if (enableSync && syncedActiveIndex !== null) {
-      return syncedActiveIndex;
-    }
-    return hoveredChartIndex;
-  }, [variant, enableSync, syncedActiveIndex, hoveredChartIndex]);
+  // Note: effectiveHoverIndex removed - no longer needed since sidebar doesn't show live hover values
 
-  // Compute live values for sidebar when hovering
-  const computeLiveValues = useCallback(() => {
-    if (effectiveHoverIndex === null || effectiveHoverIndex < 0 || effectiveHoverIndex >= aggregatedData.length) {
-      return undefined;
-    }
-    
-    const row = aggregatedData[effectiveHoverIndex] as any;
-    const liveValues: Record<string, { value: string | number }> = {};
-    
-    const metricsToCalculate: MetricKey[] = ['latency_ms', 'jitter_ms', 'packet_loss_percent'];
-    metricsToCalculate.forEach((metricKey) => {
-      const value = row[`${metricKey}_${activeMetric}`];
-      if (typeof value === 'number' && !isNaN(value)) {
-        const unit = metricKey === 'packet_loss_percent' ? '%' : 'ms';
-        liveValues[metricKey] = {
-          value: `${value.toFixed(1)}${unit}`,
-        };
-      }
-    });
-    
-    return liveValues;
-  }, [effectiveHoverIndex, aggregatedData, activeMetric]);
+  // Note: computeLiveValues removed - sidebar now always shows min/avg/max instead of hover values
+  // since drawer charts now have tooltips
 
-  // Compute timestamp info for sidebar
+  // Compute timestamp info for sidebar - always show range, not hover point
   const timestampInfo = useMemo(() => {
     if (variant !== 'drawer') return undefined;
     
-    // Use synced timestamp if available, otherwise use local hover
-    const effectiveTimestamp = (enableSync && syncContext?.syncedTimestamp) || hoveredChartTimestamp;
-    
-    if (effectiveTimestamp) {
-      // Show hovered/synced point
-      return {
-        type: 'point' as const,
-        currentDate: new Date(effectiveTimestamp),
-      };
-    } else if (slicedData.length > 0) {
-      // Show range
+    // Always show range (removed hover point display since tooltips now handle that)
+    if (slicedData.length > 0) {
       return {
         type: 'range' as const,
         startDate: new Date(slicedData[0].x),
@@ -589,12 +540,10 @@ export default function WanLatencyChart({
     }
     
     return undefined;
-  }, [variant, enableSync, syncContext, hoveredChartTimestamp, slicedData]);
+  }, [variant, slicedData]);
 
-  const liveValues = useMemo(() => {
-    if (variant !== 'drawer' || effectiveHoverIndex === null) return undefined;
-    return computeLiveValues();
-  }, [variant, effectiveHoverIndex, computeLiveValues]);
+  // Note: liveValues removed - sidebar now always shows min/avg/max instead of hover values
+  // since drawer charts now have tooltips
 
   const renderMetricLegend = () => {
     const legendItems = (["latency_ms", "jitter_ms", "packet_loss_percent"] as MetricKey[]).map((key) => ({
@@ -745,7 +694,6 @@ export default function WanLatencyChart({
                 allowEscapeViewBox={{ x: false, y: true }}
                 isAnimationActive={false}
                 wrapperStyle={{ zIndex: 1000 }}
-                position={{ y: 0 }}
               />
 
               {/* In focus mode, show selected metric as main line with dots, others as preview lines */}
@@ -1078,7 +1026,17 @@ export default function WanLatencyChart({
             <ChartDrawerLegend
               dataItems={drawerLegendItems}
               timestamp={timestampInfo}
-              liveValues={liveValues}
+              isBrushAdjusting={isBrushAdjusting}
+              selectedMetrics={[activeMetric]}
+              onMetricsChange={onMetricTypeChange ? (metrics) => {
+                if (metrics.length > 0) {
+                  onMetricTypeChange(metrics[metrics.length - 1] as MetricType);
+                }
+              } : metricType === undefined ? (metrics) => {
+                if (metrics.length > 0) {
+                  setSelectedMetric(metrics[metrics.length - 1] as MetricType);
+                }
+              } : undefined}
               focusedItem={focusedMetric}
               onFocusItem={(id) => {
                 setPreFocusHiddenMetrics(hiddenMetrics);
@@ -1128,7 +1086,7 @@ export default function WanLatencyChart({
                 setSelectedMetric(metrics[metrics.length - 1] as MetricType);
               }
             } : undefined}
-            hideMetricToggles={false}
+            hideMetricToggles={true}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
@@ -1179,9 +1137,12 @@ export default function WanLatencyChart({
                     width={50}
                   />
                   <Tooltip 
-                    content={() => null}
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }}
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
+                    offset={12}
+                    allowEscapeViewBox={{ x: false, y: true }}
                     isAnimationActive={false}
+                    wrapperStyle={{ zIndex: 1000 }}
                   />
 
                   {/* In focus mode, show selected metric as main line with dots, others as preview lines */}

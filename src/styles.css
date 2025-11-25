@@ -514,6 +514,7 @@ body {
 .drawer-wrapper {
   width: 100%;
   max-width: 100%;
+  overflow: visible;
 }
 
 /* Sidebar container */
@@ -536,8 +537,21 @@ body {
   border-top-right-radius: 0.5rem; /* 8px - match parent's rounded-lg */
 }
 
+/* Metric toggles section below timestamp */
+.sidebar-legend-metric-toggles {
+  flex-shrink: 0; /* Don't shrink */
+  padding: 8px 12px;
+  border-bottom: 1px solid rgb(var(--border-border-flat));
+  background-color: rgb(var(--surface-tile));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Scrollable content area - contains all sections */
 .sidebar-legend-content {
+  display: flex; /* Make it a flex container */
+  flex-direction: column; /* Stack sections vertically */
   flex: 1; /* Take remaining space */
   overflow-y: auto;
   overflow-x: hidden;
@@ -555,8 +569,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem; /* 8px */
-  padding: 16px;
-  flex-shrink: 0; /* Sections should not shrink, only scroll */
+  padding: 12px;
+  flex: 1; /* Fill available space */
+  min-height: 0; /* Allow shrinking if needed */
   border-bottom: 1px solid rgb(var(--border-border-flat));
 }
 
@@ -575,8 +590,8 @@ body {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 0.5rem; /* 8px */
-  padding: 16px;
+  gap: 0.25rem; /* 4px */
+  padding: 12px;
   flex-shrink: 0; /* Sections should not shrink, only scroll */
 }
 
@@ -584,17 +599,19 @@ body {
 .chart-content-main {
   padding: 20px;
   padding-bottom: 0;
+  overflow: visible;
 }
 
 /* Drawer main content area padding */
 .drawer-content-main {
   padding: 16px;
   border-right: 1px solid rgb(var(--border-border-flat));
+  overflow: visible;
 }
 
 /* Drawer sidebar area (scrollable) */
 .drawer-sidebar {
-  width: 232px;
+  width: 256px;
   flex-shrink: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -718,12 +735,19 @@ body {
   height: 32px;
   margin: 1.5rem auto 0; /* mt-6 mx-auto */
   border-radius: 8px;
-  background-color: rgb(var(--surface-action));
-  transition: background-color 200ms ease-in-out;
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(rgb(var(--surface-action)), rgb(var(--surface-action))),
+    linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  transition: all 200ms ease-in-out;
 }
 
 .drawer-add-widget-button:hover {
-  background-color: rgb(var(--surface-action-hover));
+  background-image: 
+    linear-gradient(rgb(var(--surface-action-hover)), rgb(var(--surface-action-hover))),
+    linear-gradient(180deg, var(--border-gradient-start), var(--border-gradient-end));
 }
 
 /* Drawer button separator - vertical divider between header action buttons */

@@ -51,10 +51,10 @@ export function ChartDrawerContent({
   } : undefined;
   
   return (
-    <div className={`flex w-full h-full ${className}`} style={{ minHeight: 0, overflow: 'hidden' }}>
+    <div className={`flex w-full h-full ${className}`} style={{ minHeight: 0, overflow: 'visible' }}>
       {/* Main Content Area */}
       <div 
-        className={`flex-1 flex flex-col overflow-hidden ${mainClass}`}
+        className={`flex-1 flex flex-col overflow-visible ${mainClass}`}
         style={mainStyle}
       >
         {children}

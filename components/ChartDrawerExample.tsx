@@ -54,12 +54,6 @@ export function ChartDrawerExample() {
       dashArray: '8 6',
       isHidden: hiddenBands.has('band-5'),
     },
-    {
-      id: 'band-5m',
-      label: '5GHz mesh',
-      dashArray: '2 6',
-      isHidden: hiddenBands.has('band-5m'),
-    },
   ];
   
   const handleToggleDevice = (id: string) => {

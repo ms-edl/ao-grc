@@ -81,16 +81,14 @@ const COLOR_ORDER = {
 type MetricType = "avg" | "min" | "max";
 
 // Band codes and styles
-type BandCode = "24" | "5" | "5m";
+type BandCode = "24" | "5";
 const BAND_LABEL: Record<BandCode, string> = {
   "24": "2.4GHz",
   "5": "5GHz",
-  "5m": "5GHz mesh",
 };
 const BAND_DASH: Record<BandCode, string | undefined> = {
   "24": undefined, // solid
   "5": "8 6",    // dashed
-  "5m": "2 6",   // dotted-ish
 };
 
 const BAND_META_PREFIX = "__band:"; // stored per row as __band:<deviceId>
@@ -100,8 +98,7 @@ const normalizeBand = (raw: string | undefined | null): BandCode | null => {
   const s = String(raw).trim().toLowerCase();
   if (!s) return null;
   if (/(2\.4|2g|2 ghz|2\.4ghz)/.test(s)) return "24";
-  if (/(5ghz mesh|5 ghz mesh|mesh5|backhaul|mesh)/.test(s)) return "5m";
-  if (/(5|5ghz|5 ghz)/.test(s)) return "5";
+  if (/(5|5ghz|5 ghz|5ghz mesh|5 ghz mesh|mesh5|backhaul|mesh)/.test(s)) return "5";
   return null;
 };
 
@@ -168,6 +165,10 @@ interface MultiDeviceLatencyChartProps {
    * Whether the chart is currently being dragged
    */
   isDragging?: boolean;
+  /**
+   * Whether the brush is currently being adjusted
+   */
+  isBrushAdjusting?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -186,6 +187,7 @@ export default function MultiDeviceLatencyChart({
   isDragging = false,
   metricType,
   onMetricTypeChange,
+  isBrushAdjusting = false,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -224,7 +226,7 @@ export default function MultiDeviceLatencyChart({
   // === Filters state (controls dataset inclusion) ===
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterPanel, setFilterPanel] = useState<"root" | "bands" | "clients">("root");
-  const [selectedBands, setSelectedBands] = useState<Set<BandCode>>(new Set(["24", "5", "5m"]));
+  const [selectedBands, setSelectedBands] = useState<Set<BandCode>>(new Set(["24", "5"]));
   // selectedClients: empty Set => "all" selected (implicit)
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   
@@ -235,9 +237,8 @@ export default function MultiDeviceLatencyChart({
   // === Drawer state ===
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
-  // === Chart hover state (for sidebar live values) ===
-  const [hoveredChartTimestamp, setHoveredChartTimestamp] = useState<string | null>(null);
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+  // Note: Chart hover state removed - sidebar no longer shows hover timestamps or live values
+  // Tooltips now handle all hover interactions
   
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -606,7 +607,7 @@ export default function MultiDeviceLatencyChart({
         const v = row[id];
         if (!(typeof v === "number" && !Number.isNaN(v))) {
           // ensure keys exist but null to keep chart gaps clean
-          for (const code of ["24", "5", "5m"] as BandCode[]) out[`${id}__band_${code}`] = null;
+          for (const code of ["24", "5"] as BandCode[]) out[`${id}__band_${code}`] = null;
           deviceState[id] = { band: null, timestamp: null };
           continue;
         }
@@ -616,7 +617,7 @@ export default function MultiDeviceLatencyChart({
         // 2) device-name heuristic for mesh/ext
         if (!b) {
           const name = deviceNames[id] || "";
-          if (/\b(mesh|ext|extender|backhaul)\b/i.test(name)) b = "5m";
+          if (/\b(mesh|ext|extender|backhaul)\b/i.test(name)) b = "5";
         }
         // 3) latency-based heuristic: below q25 -> 5GHz, above q75 -> 2.4GHz, between -> keep previous band if available
         if (!b) {
@@ -671,7 +672,7 @@ export default function MultiDeviceLatencyChart({
         // If we should break the line, set all bands to null for this point
         // This creates a visual gap before the new segment
         if (shouldBreak) {
-          for (const c of ["24", "5", "5m"] as BandCode[]) {
+          for (const c of ["24", "5"] as BandCode[]) {
             out[`${id}__band_${c}`] = null;
             out[`${id}__band_${c}__min`] = null;
             out[`${id}__band_${c}__max`] = null;
@@ -680,7 +681,7 @@ export default function MultiDeviceLatencyChart({
           deviceState[id] = { band: code, timestamp: currentTimestamp };
         } else {
           out[`${id}__band_${code}`] = metricValue;
-          const others: BandCode[] = ["24", "5", "5m"].filter((x) => x !== code) as BandCode[];
+          const others: BandCode[] = ["24", "5"].filter((x) => x !== code) as BandCode[];
           for (const o of others) {
             out[`${id}__band_${o}`] = null;
             out[`${id}__band_${o}__min`] = null;
@@ -718,7 +719,7 @@ export default function MultiDeviceLatencyChart({
       dataWithPreviews = baseData.map((row: any) => {
         const id = deviceToPreview;
         const allBandValues: number[] = [];
-        (["24", "5", "5m"] as BandCode[]).forEach((code) => {
+        (["24", "5"] as BandCode[]).forEach((code) => {
           const minVal = row[`${id}__band_${code}__min`];
           const maxVal = row[`${id}__band_${code}__max`];
           if (typeof minVal === "number" && !Number.isNaN(minVal)) allBandValues.push(minVal);
@@ -767,7 +768,7 @@ export default function MultiDeviceLatencyChart({
         const syntheticRow: any = { x: isoStr };
         // Add null values for all device bands to ensure tooltip can render
         for (const id of deviceIds) {
-          for (const code of ["24", "5", "5m"] as BandCode[]) {
+          for (const code of ["24", "5"] as BandCode[]) {
             syntheticRow[`${id}__band_${code}`] = null;
           }
         }
@@ -941,7 +942,7 @@ export default function MultiDeviceLatencyChart({
       
       // First, determine which band is actually active at this timestamp
       let activeBand: BandCode | undefined;
-      for (const code of ["24", "5", "5m"] as BandCode[]) {
+      for (const code of ["24", "5"] as BandCode[]) {
         const bandValue = (rowAtLabel as any)[`${id}__band_${code}`];
         if (typeof bandValue === "number" && !Number.isNaN(bandValue)) {
           activeBand = code;
@@ -1001,7 +1002,7 @@ export default function MultiDeviceLatencyChart({
       
       // Fallback to rowAtLabel if no value found in payload
       if (value === undefined && rowAtLabel) {
-        for (const code of ["24", "5", "5m"] as BandCode[]) {
+        for (const code of ["24", "5"] as BandCode[]) {
           const bandValue = (rowAtLabel as any)[`${id}__band_${code}`];
           if (typeof bandValue === "number" && !Number.isNaN(bandValue)) {
             value = bandValue;
@@ -1047,13 +1048,7 @@ export default function MultiDeviceLatencyChart({
       }
     }
     
-    // Track hover for sidebar updates (in drawer mode)
-    if (variant === 'drawer' && state && state.activeTooltipIndex !== undefined) {
-      setHoveredChartIndex(state.activeTooltipIndex);
-      if (chartData[state.activeTooltipIndex]) {
-        setHoveredChartTimestamp(chartData[state.activeTooltipIndex].x);
-      }
-    }
+    // Note: Removed hover timestamp tracking - sidebar no longer updates on hover
   }, [enableSync, syncContext, chartData, variant]);
 
   const handleChartMouseLeave = useCallback(() => {
@@ -1061,80 +1056,22 @@ export default function MultiDeviceLatencyChart({
       syncContext.setSyncedTimestamp(null);
     }
     
-    // Clear hover state
-    if (variant === 'drawer') {
-      setHoveredChartIndex(null);
-      setHoveredChartTimestamp(null);
-    }
+    // Note: Removed hover timestamp clearing - no longer tracked
   }, [enableSync, syncContext, variant]);
 
-  // Calculate active index from synced timestamp
-  const syncedActiveIndex = useMemo(() => {
-    if (!enableSync || !syncContext || !syncContext.syncedTimestamp) {
-      return null;
-    }
-    return findClosestTimestampIndex(chartData, syncContext.syncedTimestamp);
-  }, [enableSync, syncContext, syncContext?.syncedTimestamp, chartData]);
+  // Note: syncedActiveIndex removed - no longer needed since sidebar doesn't show live hover values
 
-  // Determine the effective index to use for sidebar (synced or local hover)
-  const effectiveHoverIndex = useMemo(() => {
-    if (variant !== 'drawer') return null;
-    // In drawer mode with sync enabled, use synced index if available, otherwise use local hover
-    if (enableSync && syncedActiveIndex !== null) {
-      return syncedActiveIndex;
-    }
-    return hoveredChartIndex;
-  }, [variant, enableSync, syncedActiveIndex, hoveredChartIndex]);
+  // Note: effectiveHoverIndex removed - no longer needed since sidebar doesn't show live hover values
 
-  // Compute live values for sidebar when hovering
-  const computeLiveValues = useCallback(() => {
-    if (effectiveHoverIndex === null || effectiveHoverIndex < 0 || effectiveHoverIndex >= chartData.length) {
-      return undefined;
-    }
-    
-    const row = chartData[effectiveHoverIndex] as any;
-    const liveValues: Record<string, { value: string | number; band?: string }> = {};
-    
-    filteredDeviceIds.forEach((id) => {
-      // Find which band is active at this point
-      let activeValue: number | null = null;
-      let activeBand: string | undefined;
-      
-      for (const code of ["24", "5", "5m"] as BandCode[]) {
-        const bandValue = row[`${id}__band_${code}`];
-        if (typeof bandValue === 'number' && !isNaN(bandValue)) {
-          activeValue = bandValue;
-          activeBand = BAND_LABEL[code];
-          break;
-        }
-      }
-      
-      if (activeValue !== null) {
-        liveValues[id] = {
-          value: `${activeValue.toFixed(1)}ms`,
-          band: activeBand,
-        };
-      }
-    });
-    
-    return liveValues;
-  }, [effectiveHoverIndex, chartData, filteredDeviceIds]);
+  // Note: computeLiveValues removed - sidebar now always shows min/avg/max instead of hover values
+  // since drawer charts now have tooltips
 
-  // Compute timestamp info for sidebar
+  // Compute timestamp info for sidebar - always show range, not hover point
   const timestampInfo = useMemo(() => {
     if (variant !== 'drawer') return undefined;
     
-    // Use synced timestamp if available, otherwise use local hover
-    const effectiveTimestamp = (enableSync && syncContext?.syncedTimestamp) || hoveredChartTimestamp;
-    
-    if (effectiveTimestamp) {
-      // Show hovered/synced point
-      return {
-        type: 'point' as const,
-        currentDate: new Date(effectiveTimestamp),
-      };
-    } else if (slicedData.length > 0) {
-      // Show range
+    // Always show range (removed hover point display since tooltips now handle that)
+    if (slicedData.length > 0) {
       return {
         type: 'range' as const,
         startDate: new Date(slicedData[0].x),
@@ -1143,12 +1080,10 @@ export default function MultiDeviceLatencyChart({
     }
     
     return undefined;
-  }, [variant, enableSync, syncContext, hoveredChartTimestamp, slicedData]);
+  }, [variant, slicedData]);
 
-  const liveValues = useMemo(() => {
-    if (variant !== 'drawer' || effectiveHoverIndex === null) return undefined;
-    return computeLiveValues();
-  }, [variant, effectiveHoverIndex, computeLiveValues]);
+  // Note: liveValues removed - sidebar now always shows min/avg/max instead of hover values
+  // since drawer charts now have tooltips
 
   if (loading) {
     return (
@@ -1214,7 +1149,7 @@ export default function MultiDeviceLatencyChart({
     });
     
     // Prepare section items (band types)
-    const drawerSectionItems: DrawerLegendSectionItem[] = (["24", "5", "5m"] as BandCode[])
+    const drawerSectionItems: DrawerLegendSectionItem[] = (["24", "5"] as BandCode[])
       .filter((code) => selectedBands.has(code))
       .map((code) => ({
         id: code,
@@ -1231,7 +1166,17 @@ export default function MultiDeviceLatencyChart({
               dataItems={drawerLegendItems}
               sectionItems={drawerSectionItems}
               timestamp={timestampInfo}
-              liveValues={liveValues}
+              isBrushAdjusting={isBrushAdjusting}
+              selectedMetrics={[activeMetric]}
+              onMetricsChange={onMetricTypeChange ? (metrics) => {
+                if (metrics.length > 0) {
+                  onMetricTypeChange(metrics[metrics.length - 1] as MetricType);
+                }
+              } : metricType === undefined ? (metrics) => {
+                if (metrics.length > 0) {
+                  setSelectedMetric(metrics[metrics.length - 1] as MetricType);
+                }
+              } : undefined}
               focusedItem={focusedDevice}
               onFocusItem={(id) => {
                 setPreFocusHiddenDevices(hiddenDevices);
@@ -1270,7 +1215,7 @@ export default function MultiDeviceLatencyChart({
               }}
               onMouseEnter={(id) => {
                 // Check if it's a band or device
-                if (["24", "5", "5m"].includes(id)) {
+                if (["24", "5"].includes(id)) {
                   setHoveredBand(id as BandCode);
                 } else {
                   if (!focusedDevice && !hiddenDevices.has(id)) {
@@ -1299,7 +1244,7 @@ export default function MultiDeviceLatencyChart({
                 setSelectedMetric(metrics[metrics.length - 1] as MetricType);
               }
             } : undefined}
-            hideMetricToggles={false}
+            hideMetricToggles={true}
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
@@ -1307,7 +1252,7 @@ export default function MultiDeviceLatencyChart({
               <>
                 <AoBtnFilter
                   iconName="wifi"
-                  countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                  countLabel={`${selectedBands.size}/${["24", "5"].length}`}
                   ariaLabel="WiFi Bands"
                   tooltipText="Wi-Fi bands"
                   onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
@@ -1356,9 +1301,12 @@ export default function MultiDeviceLatencyChart({
                     width={50}
                   />
                   <Tooltip 
-                    content={() => null}
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }}
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
+                    offset={12}
+                    allowEscapeViewBox={{ x: false, y: true }}
                     isAnimationActive={false}
+                    wrapperStyle={{ zIndex: 1000 }}
                   />
 
                   <defs>
@@ -1422,7 +1370,7 @@ export default function MultiDeviceLatencyChart({
                   })()}
 
                   {visibleDeviceIds.flatMap((id) => (
-                    (["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code) && !hiddenBands.has(code)).map((code) => {
+                    (["24", "5"] as BandCode[]).filter((code) => selectedBands.has(code) && !hiddenBands.has(code)).map((code) => {
                       const key = `${id}__band_${code}`;
                       const color = DEVICE_COLORS[id] || "#555";
                       const deviceId = id.split('__band_')[0];
@@ -1557,7 +1505,7 @@ export default function MultiDeviceLatencyChart({
                 <div className="flex items-center gap-1">
                   <AoBtnFilter
                     iconName="wifi"
-                    countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                    countLabel={`${selectedBands.size}/${["24", "5"].length}`}
                     ariaLabel="WiFi Bands"
                     tooltipText="Wi-Fi bands"
                     onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
@@ -1659,7 +1607,7 @@ export default function MultiDeviceLatencyChart({
                   </div>
                   {filterPanel === "bands" && (
                     <div className="space-y-2 p-2">
-                      {(["24", "5", "5m"] as BandCode[]).map((code) => {
+                      {(["24", "5"] as BandCode[]).map((code) => {
                         const checked = selectedBands.has(code);
                         return (
                           <label
@@ -1819,7 +1767,7 @@ export default function MultiDeviceLatencyChart({
         <div className="w-full flex items-center justify-between gap-2">
           {/* Band styles */}
           <div className="flex items-center gap-2 text-content-secondary">
-            {(["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
+            {(["24", "5"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
               const isHidden = hiddenBands.has(code);
               return (
                 <GraphLegendItem
@@ -1925,7 +1873,6 @@ export default function MultiDeviceLatencyChart({
                 allowEscapeViewBox={{ x: false, y: true }}
                 isAnimationActive={false}
                 wrapperStyle={{ zIndex: 1000 }}
-                position={{ y: 0 }}
               />
 
               {/* Shaded bands for global outages in the visible window */}
@@ -2159,7 +2106,7 @@ export default function MultiDeviceLatencyChart({
                     <div className="flex items-center gap-1">
                       <AoBtnFilter
                         iconName="wifi"
-                        countLabel={`${selectedBands.size}/${["24", "5", "5m"].length}`}
+                        countLabel={`${selectedBands.size}/${["24", "5"].length}`}
                         ariaLabel="WiFi Bands"
                         onClick={() => { setIsFilterOpen(true); setFilterPanel("bands"); }}
                       />
@@ -2235,7 +2182,7 @@ export default function MultiDeviceLatencyChart({
             <div className="w-full flex items-center justify-between gap-2">
               {/* Band styles */}
               <div className="flex items-center gap-2 text-content-secondary">
-                {(["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
+                {(["24", "5"] as BandCode[]).filter((code) => selectedBands.has(code)).map((code) => {
                   const isHidden = hiddenBands.has(code);
                   return (
                     <GraphLegendItem
@@ -2307,7 +2254,6 @@ export default function MultiDeviceLatencyChart({
                     allowEscapeViewBox={{ x: false, y: true }}
                     isAnimationActive={false}
                     wrapperStyle={{ zIndex: 1000 }}
-                    position={{ y: 0 }}
                   />
 
                   <defs>
@@ -2371,7 +2317,7 @@ export default function MultiDeviceLatencyChart({
                   })()}
 
                   {visibleDeviceIds.flatMap((id) => (
-                    (["24", "5", "5m"] as BandCode[]).filter((code) => selectedBands.has(code) && !hiddenBands.has(code)).map((code) => {
+                    (["24", "5"] as BandCode[]).filter((code) => selectedBands.has(code) && !hiddenBands.has(code)).map((code) => {
                       const key = `${id}__band_${code}`;
                       const color = DEVICE_COLORS[id] || "#555";
                       const deviceId = id.split('__band_')[0];
