@@ -444,21 +444,14 @@ export function ResizableChartDrawer({
                       height: '130px',
                       overflow: 'visible',
                       zIndex: 1001,
+                      background: 'rgb(var(--surface-section))',
+                      borderTop: '1px solid rgb(var(--border-border-flat))',
                     }}
                   >
-                    {/* Gradient Background Layer */}
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        background: 'linear-gradient(to bottom, rgb(var(--surface-section) / 0) 0%, rgb(var(--surface-section) / 1) 100%)',
-                        zIndex: 1,
-                      }}
-                    />
                     {/* Brush + Time Axis Content Layer */}
                     <div 
-                      className="py-4 h-full relative transition-all duration-300" 
+                      className="pt-4 pb-2 h-full relative transition-all duration-300" 
                       style={{ 
-                        zIndex: 2, 
                         paddingLeft: isSidebarOpen ? 'calc(256px + 1.5rem)' : '1.5rem', 
                         paddingRight: '1.5rem' 
                       }}
