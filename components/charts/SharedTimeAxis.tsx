@@ -45,7 +45,7 @@ export function SharedTimeAxis({ data, xKey, startIndex, endIndex }: SharedTimeA
       width: '100%',
       height: 36,
       paddingBottom: 8,
-      background: 'rgb(var(--surface-section))',
+      background: 'rgb(var(--surface-tile))',
       borderTop: '1px solid rgb(var(--border-border-flat))',
     }}>
       <ResponsiveContainer width="100%" height="100%">

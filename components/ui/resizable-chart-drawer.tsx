@@ -236,7 +236,7 @@ export function ResizableChartDrawer({
                 }}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-4 border-b border-gradient-border flex-shrink-0">
+                <div className="flex items-center justify-between px-4 py-4 border-b border-gradient-border flex-shrink-0" style={{ background: 'rgb(var(--surface-tile))' }}>
                   {/* Use device layout if deviceName is provided, otherwise use legacy title */}
                   {deviceName ? (
                     <div className="flex items-center gap-3 flex-1 min-w-0">
