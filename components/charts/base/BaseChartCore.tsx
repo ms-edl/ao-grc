@@ -42,6 +42,17 @@ export interface BaseChartCoreProps<TData = any> {
   renderReferenceElements?: () => ReactNode;
   
   /**
+   * Optional render function for SVG <defs> (hatch patterns, gradients).
+   * Rendered inside LineChart before other children.
+   */
+  renderDefs?: () => ReactNode;
+  
+  /**
+   * Tooltip position override. When undefined, tooltip follows the cursor.
+   */
+  tooltipPosition?: { x?: number; y?: number };
+  
+  /**
    * Chart height in pixels
    */
   height?: number;
@@ -92,6 +103,8 @@ export function BaseChartCore<TData = any>({
   renderLines,
   renderTooltip,
   renderReferenceElements,
+  renderDefs,
+  tooltipPosition,
   height = 256,
   margin = { top: 8, right: 32, left: 0, bottom: 8 },
   enableSync = false,
@@ -119,7 +132,8 @@ export function BaseChartCore<TData = any>({
           syncId={enableSync ? 'tooltipSync' : undefined}
           syncMethod="index"
         >
-          {/* Grid */}
+          {renderDefs?.()}
+          
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="rgb(var(--border-border-flat))"
@@ -147,7 +161,7 @@ export function BaseChartCore<TData = any>({
               axisLine={false}
               tickLine={false}
               domain={config.domain}
-              ticks={config.ticks}
+              {...(config.ticks ? { ticks: config.ticks } : {})}
               label={
                 config.label
                   ? {
@@ -175,7 +189,7 @@ export function BaseChartCore<TData = any>({
             allowEscapeViewBox={{ x: false, y: true }}
             isAnimationActive={false}
             wrapperStyle={{ zIndex: 1000 }}
-            position={{ y: 0 }}
+            {...(tooltipPosition ? { position: tooltipPosition } : {})}
           />
           
           {/* Reference elements (areas, lines, etc.) */}

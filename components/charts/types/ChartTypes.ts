@@ -17,7 +17,7 @@ export interface YAxisConfig {
   id: string;
   orientation?: 'left' | 'right';
   domain: [number, number];
-  ticks: number[];
+  ticks?: number[];
   label?: string;
   width?: number;
 }

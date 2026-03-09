@@ -26,6 +26,7 @@ import { ChartReferenceLabel } from "./ChartReferenceLabel";
 import { applyRollingWindowToDataset } from "./utils/rollingWindowStats";
 import { calculateYAxisDomain, calculateNiceTicks } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
+import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 import { Icon } from "./ui/icons";
@@ -1094,63 +1095,27 @@ export default function WanLatencyChart({
           
           {/* Chart */}
           <div className="chart-drawer-chart-container">
-            <div className="chart-drawer-chart-inner" style={{ height: chartHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart 
-                  data={aggregatedData} 
-                  margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}
-                  onMouseMove={handleChartMouseMove}
-                  onMouseLeave={handleChartMouseLeave}
-                  syncId={enableSync ? "tooltipSync" : undefined}
-                  syncMethod="index"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
-                  <XAxis
-                    dataKey="x"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    ticks={xTicks as any}
-                    tick={renderTick as any}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={yAxisDomains.latency_ms}
-                    ticks={yAxisTicks.latency_ms}
-                    label={{ value: 'ms', angle: -90, position: 'insideLeft', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
-                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
-                    width={50}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={yAxisDomains.packet_loss_percent}
-                    label={{ value: '%', angle: 90, position: 'insideRight', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
-                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
-                    width={50}
-                  />
-                  <Tooltip 
-                    content={<CustomTooltip />} 
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
-                    offset={12}
-                    allowEscapeViewBox={{ x: false, y: true }}
-                    isAnimationActive={false}
-                    wrapperStyle={{ zIndex: 1000 }}
-                  />
-
-                  {/* In focus mode, show selected metric as main line with dots, others as preview lines */}
+            <BaseChartCore
+              data={aggregatedData}
+              xKey="x"
+              height={chartHeight}
+              margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}
+              yAxisConfig={[
+                { id: "left", orientation: "left", domain: yAxisDomains.latency_ms as [number, number], ticks: yAxisTicks.latency_ms, label: "ms", width: 50 },
+                { id: "right", orientation: "right", domain: yAxisDomains.packet_loss_percent as [number, number], label: "%", width: 50 },
+              ]}
+              startIndex={0}
+              endIndex={aggregatedData.length - 1}
+              enableSync={!!enableSync}
+              onMouseMove={handleChartMouseMove}
+              onMouseLeave={handleChartMouseLeave}
+              renderTooltip={() => <CustomTooltip />}
+              renderLines={() => (
+                <>
                   {focusedMetric && (() => {
                     const metricColor = colors[focusedMetric === "latency_ms" ? "latency" : focusedMetric === "jitter_ms" ? "jitter" : "packetLoss"];
                     const yAxisId = focusedMetric === "packet_loss_percent" ? "right" : "left";
                     
-                    // Show selected metric as main line with dots (like hover mode)
                     const lineStyle = useChartLineStyle({
                       isHighlighted: true,
                       color: metricColor,
@@ -1159,12 +1124,10 @@ export default function WanLatencyChart({
                       showBoundaryMarkers: true,
                     });
                     
-                    // Get preview metrics (the other two)
                     const previewMetrics = getPreviewMetrics(activeMetric);
                     
                     return (
                       <>
-                        {/* Main line for selected metric with dots */}
                         <Line
                           yAxisId={yAxisId}
                           type="monotone"
@@ -1178,7 +1141,6 @@ export default function WanLatencyChart({
                           strokeOpacity={lineStyle.strokeOpacity}
                         />
                         
-                        {/* Preview lines for other metrics without dots */}
                         {renderPreviewLines({
                           itemId: focusedMetric,
                           color: metricColor,
@@ -1190,7 +1152,6 @@ export default function WanLatencyChart({
                     );
                   })()}
 
-                  {/* Preview lines when hovering on a metric (not in focus mode) */}
                   {!focusedMetric && hoveredMetric && (() => {
                     const metricColor = colors[hoveredMetric === "latency_ms" ? "latency" : hoveredMetric === "jitter_ms" ? "jitter" : "packetLoss"];
                     const yAxisId = hoveredMetric === "packet_loss_percent" ? "right" : "left";
@@ -1205,10 +1166,8 @@ export default function WanLatencyChart({
                     });
                   })()}
 
-                  {/* Main metric lines - only show when not in focus mode and not hovering */}
                   {!focusedMetric && (
                     <>
-                      {/* Latency line */}
                       {!hiddenMetrics.has("latency_ms") && (() => {
                         const isHighlighted = hoveredMetric === null || hoveredMetric === "latency_ms";
                         const lineStyle = useChartLineStyle({
@@ -1235,7 +1194,6 @@ export default function WanLatencyChart({
                         );
                       })()}
                   
-                      {/* Jitter line */}
                       {!hiddenMetrics.has("jitter_ms") && (() => {
                         const isHighlighted = hoveredMetric === null || hoveredMetric === "jitter_ms";
                         const lineStyle = useChartLineStyle({
@@ -1262,7 +1220,6 @@ export default function WanLatencyChart({
                         );
                       })()}
                   
-                      {/* Packet loss line */}
                       {!hiddenMetrics.has("packet_loss_percent") && (() => {
                         const isHighlighted = hoveredMetric === null || hoveredMetric === "packet_loss_percent";
                         const lineStyle = useChartLineStyle({
@@ -1290,8 +1247,10 @@ export default function WanLatencyChart({
                       })()}
                     </>
                   )}
-
-                  {/* Reference lines with labels - rendered last to appear on top */}
+                </>
+              )}
+              renderReferenceElements={() => (
+                <>
                   {(hoveredMetric || focusedMetric) && (() => {
                     const metricToShow = focusedMetric || hoveredMetric;
                     if (!metricToShow) return null;
@@ -1299,9 +1258,7 @@ export default function WanLatencyChart({
                     const yAxisId = metricToShow === "packet_loss_percent" ? "right" : "left";
                     const previewMetrics: MetricType[] = [];
                     
-                    // In focus mode, show all three metrics except the selected one
                     if (focusedMetric) {
-                      // Show all metrics except the selected one
                       if (activeMetric === "avg") {
                         previewMetrics.push("min", "max");
                       } else if (activeMetric === "min") {
@@ -1310,11 +1267,9 @@ export default function WanLatencyChart({
                         previewMetrics.push("min", "avg");
                       }
                     } else {
-                      // When hovering, show the other two metrics (already excludes selected)
                       previewMetrics.push(...getPreviewMetrics(activeMetric));
                     }
                     
-                    // Find the last non-null values for preview metrics (for labels)
                     const previewValues: Record<MetricType, number | null> = {
                       avg: null,
                       min: null,
@@ -1331,7 +1286,6 @@ export default function WanLatencyChart({
                       }
                     });
                     
-                    // Add reference lines with labels for each preview metric
                     return previewMetrics.map((metric) => {
                       const value = previewValues[metric];
                       if (value !== null) {
@@ -1348,9 +1302,9 @@ export default function WanLatencyChart({
                       return null;
                     }).filter(Boolean);
                   })()}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                </>
+              )}
+            />
           </div>
         </ChartDrawerContent>
         

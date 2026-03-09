@@ -26,6 +26,7 @@ import { calculateMetrics } from "./utils/rollingWindowStats";
 import { ChartReferenceLabel } from "./ChartReferenceLabel";
 import { calculateYAxisDomainFromDevices } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
+import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 import { Icon } from "./ui/icons";
@@ -1102,7 +1103,6 @@ export default function MultiDeviceLatencyChart({
 
   // Render drawer variant with new layout
   if (variant === 'drawer') {
-    console.log('Rendering drawer variant');
     
     // Calculate min/avg/max values for each device (for drawer legend)
     const deviceStats: Record<string, { min: number; avg: number; max: number }> = {};
@@ -1271,74 +1271,29 @@ export default function MultiDeviceLatencyChart({
           
           {/* Chart */}
           <div className="chart-drawer-chart-container">
-            <div className="chart-drawer-chart-inner" style={{ height: chartHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart 
-                  data={chartData} 
-                  margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
-                  onMouseMove={handleChartMouseMove}
-                  onMouseLeave={handleChartMouseLeave}
-                  syncId={enableSync ? "tooltipSync" : undefined}
-                  syncMethod="index"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border-border-flat))" vertical={false} />
-                  <XAxis
-                    dataKey="x"
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    ticks={xTicks as any}
-                    tick={renderXAxisTick as any}
-                  />
-                  <YAxis
-                    tickMargin={8}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={[0, 30]}
-                    label={{ value: 'ms', angle: -90, position: 'insideLeft', style: { fill: "rgb(var(--content-tertiary))", fontSize: 12 } }}
-                    tick={{ fontSize: 11, fill: "rgb(var(--content-tertiary))", style: { userSelect: "none" } as any }}
-                    width={50}
-                  />
-                  <Tooltip 
-                    content={<CustomTooltip />} 
-                    cursor={{ stroke: "rgb(var(--border-border-flat))" }} 
-                    offset={12}
-                    allowEscapeViewBox={{ x: false, y: true }}
-                    isAnimationActive={false}
-                    wrapperStyle={{ zIndex: 1000 }}
-                  />
-
-                  <defs>
-                    <pattern id="outageHatch-drawer" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-                      <line x1="0" y1="0" x2="0" y2="8" stroke="rgb(var(--content-tertiary))" strokeWidth="2" />
-                    </pattern>
-                  </defs>
-
-                  {outageRanges.map((r, i) => (
-                    <ReferenceArea
-                      key={`outage-${i}`}
-                      x1={r.x1}
-                      x2={r.x2}
-                      fill="rgb(var(--content-tertiary))"
-                      fillOpacity={0.08}
-                      stroke="rgb(var(--content-tertiary))"
-                      strokeOpacity={0.2}
-                    />
-                  ))}
-
-                  {outageRanges.map((r, i) => (
-                    <ReferenceArea
-                      key={`outage-hatch-${i}`}
-                      x1={r.x1}
-                      x2={r.x2}
-                      fill="url(#outageHatch-drawer)"
-                      fillOpacity={0.15}
-                      stroke="rgb(var(--content-tertiary))"
-                      strokeOpacity={0.2}
-                    />
-                  ))}
-                  
+            <BaseChartCore
+              data={chartData}
+              xKey="x"
+              height={chartHeight}
+              margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
+              yAxisConfig={[
+                { id: "latency_ms", orientation: "left", domain: [0, 30], label: "ms", width: 50 },
+              ]}
+              startIndex={0}
+              endIndex={chartData.length - 1}
+              enableSync={!!enableSync}
+              onMouseMove={handleChartMouseMove}
+              onMouseLeave={handleChartMouseLeave}
+              renderTooltip={() => <CustomTooltip />}
+              renderDefs={() => (
+                <defs>
+                  <pattern id="outageHatch-drawer" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                    <line x1="0" y1="0" x2="0" y2="8" stroke="rgb(var(--content-tertiary))" strokeWidth="2" />
+                  </pattern>
+                </defs>
+              )}
+              renderLines={() => (
+                <>
                   {(() => {
                     if (focusedDevice) {
                       const deviceId = focusedDevice!;
@@ -1348,6 +1303,7 @@ export default function MultiDeviceLatencyChart({
                       return renderPreviewLines({
                         itemId: deviceId,
                         color: deviceColor,
+                        yAxisId: "latency_ms",
                         dataKeyPrefix: deviceId,
                         previewMetrics,
                       });
@@ -1361,6 +1317,7 @@ export default function MultiDeviceLatencyChart({
                       return renderPreviewLines({
                         itemId: deviceId,
                         color: deviceColor,
+                        yAxisId: "latency_ms",
                         dataKeyPrefix: deviceId,
                         previewMetrics,
                       });
@@ -1378,7 +1335,6 @@ export default function MultiDeviceLatencyChart({
                       const isBandHighlighted = hoveredBand === null || hoveredBand === code;
                       const isHighlighted = isDeviceHighlighted && isBandHighlighted;
                       
-                      // Use shared line styling utility for consistent tick indicators
                       const lineStyle = useChartLineStyle({
                         isHighlighted,
                         color,
@@ -1390,6 +1346,7 @@ export default function MultiDeviceLatencyChart({
                       return (
                         <Line
                           key={key}
+                          yAxisId="latency_ms"
                           type="monotone"
                           dataKey={key}
                           name={id}
@@ -1405,8 +1362,36 @@ export default function MultiDeviceLatencyChart({
                       );
                     })
                   ))}
+                </>
+              )}
+              renderReferenceElements={() => (
+                <>
+                  {outageRanges.map((r, i) => (
+                    <ReferenceArea
+                      key={`outage-${i}`}
+                      yAxisId="latency_ms"
+                      x1={r.x1}
+                      x2={r.x2}
+                      fill="rgb(var(--content-tertiary))"
+                      fillOpacity={0.08}
+                      stroke="rgb(var(--content-tertiary))"
+                      strokeOpacity={0.2}
+                    />
+                  ))}
 
-                  {/* Reference lines with labels - rendered last to appear on top */}
+                  {outageRanges.map((r, i) => (
+                    <ReferenceArea
+                      key={`outage-hatch-${i}`}
+                      yAxisId="latency_ms"
+                      x1={r.x1}
+                      x2={r.x2}
+                      fill="url(#outageHatch-drawer)"
+                      fillOpacity={0.15}
+                      stroke="rgb(var(--content-tertiary))"
+                      strokeOpacity={0.2}
+                    />
+                  ))}
+
                   {(hoveredDevice || focusedDevice) && (() => {
                     const deviceToShow = focusedDevice || hoveredDevice;
                     if (!deviceToShow) return null;
@@ -1414,16 +1399,12 @@ export default function MultiDeviceLatencyChart({
                     const deviceColor = DEVICE_COLORS[deviceToShow] || "#999";
                     const previewMetrics: MetricType[] = [];
                     
-                    // In focus mode, show all three metrics except the selected one
                     if (focusedDevice) {
-                      // Show all metrics except the selected one
                       previewMetrics.push(...getPreviewMetrics(activeMetric));
                     } else {
-                      // When hovering, show the other two metrics (already excludes selected)
                       previewMetrics.push(...getPreviewMetrics(activeMetric));
                     }
                     
-                    // Find the last non-null values for preview metrics (for labels)
                     const previewValues: Record<MetricType, number | null> = {
                       avg: null,
                       min: null,
@@ -1432,7 +1413,6 @@ export default function MultiDeviceLatencyChart({
                     
                     previewMetrics.forEach((metric) => {
                       for (let i = chartData.length - 1; i >= 0; i--) {
-                        // Use preview values for all metrics (they're calculated from actual data)
                         const rowValue = chartData[i]?.[`${deviceToShow}__preview_${metric}`];
                         if (typeof rowValue === "number" && !Number.isNaN(rowValue)) {
                           previewValues[metric] = rowValue;
@@ -1441,13 +1421,13 @@ export default function MultiDeviceLatencyChart({
                       }
                     });
                     
-                    // Add reference lines with labels for each preview metric
                     return previewMetrics.map((metric) => {
                       const value = previewValues[metric];
                       if (value !== null) {
                         return (
                           <ReferenceLine
                             key={`${deviceToShow}__label_${metric}`}
+                            yAxisId="latency_ms"
                             y={value}
                             stroke="transparent"
                             label={<ChartReferenceLabel value={metric} color={deviceColor} />}
@@ -1457,9 +1437,9 @@ export default function MultiDeviceLatencyChart({
                       return null;
                     }).filter(Boolean);
                   })()}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                </>
+              )}
+            />
           </div>
         </ChartDrawerContent>
         
