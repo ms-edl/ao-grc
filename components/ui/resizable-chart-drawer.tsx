@@ -312,14 +312,9 @@ export function ResizableChartDrawer({
                   {/* Action buttons */}
                   <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                     {/* Saved views button */}
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                    >
+                    <button type="button" className="drawer-action-button">
                       <Icon name="layout" size={16} />
-                      <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
-                        Saved views
-                      </span>
+                      <span className="ui-12-book">Saved views</span>
                     </button>
 
                     {/* Separator */}
@@ -425,30 +420,9 @@ export function ResizableChartDrawer({
 
                 {/* Bottom Content (Fixed) */}
                 {bottomContent && (
-                  <div 
-                    className="flex-shrink-0 absolute bottom-0 left-0 right-0"
-                    style={{ 
-                      height: '130px',
-                      overflow: 'visible',
-                      zIndex: 1001,
-                    }}
-                  >
-                    {/* Gradient Background Layer */}
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        background: 'linear-gradient(to bottom, rgb(var(--surface-section) / 0) 0%, rgb(var(--surface-section) / 1) 100%)',
-                        zIndex: 1,
-                      }}
-                    />
-                    {/* Bottom Content Layer — no horizontal padding; children handle their own */}
-                    <div 
-                      className="pt-4 h-full relative transition-all duration-300" 
-                      style={{ 
-                        zIndex: 2, 
-                        paddingLeft: isSidebarOpen ? '256px' : 0, 
-                      }}
-                    >
+                  <div className="drawer-footer">
+                    <div className="drawer-footer-gradient" />
+                    <div className={`drawer-footer-content${isSidebarOpen ? ' is-sidebar-open' : ''}`}>
                       {bottomContent}
                     </div>
                   </div>

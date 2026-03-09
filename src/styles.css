@@ -759,6 +759,104 @@ body {
   opacity: 1;
 }
 
+/* ===================================================================
+   Drawer Footer
+   =================================================================== */
+
+/* Fixed footer container pinned to the bottom of the drawer */
+.drawer-footer {
+  flex-shrink: 0;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 130px;
+  overflow: visible;
+  z-index: 1001;
+}
+
+/* Gradient fade from transparent to surface-section */
+.drawer-footer-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--surface-section) / 0) 0%,
+    rgb(var(--surface-section) / 1) 100%
+  );
+  z-index: 1;
+}
+
+/* Content layer above the gradient */
+.drawer-footer-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  padding-top: 16px;
+  transition: padding-left 300ms ease-in-out;
+}
+
+/* Shift content right when the widget-selector sidebar is open */
+.drawer-footer-content.is-sidebar-open {
+  padding-left: 256px;
+}
+
+/* Vertical stack for brush + axis row */
+.drawer-footer-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Horizontal padding for the brush area */
+.drawer-footer-brush {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Global X-axis row: time axis on the left, time-range button on the right */
+.drawer-footer-axis-row {
+  display: flex;
+  align-items: center;
+  background: rgb(var(--surface-tile));
+  border-top: 1px solid rgb(var(--border-border-flat));
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+/* Left column — stretches to fill remaining space */
+.drawer-footer-axis {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Right column — matches the chart sidebar width */
+.drawer-footer-time-range {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--drawer-sidebar-width, 256px);
+}
+
+/* Reusable action button used in the drawer header and footer */
+.drawer-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background-color: rgb(var(--surface-action));
+  color: rgb(var(--content-primary));
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.drawer-action-button:hover {
+  background-color: rgb(var(--surface-action-hover));
+}
+
 /* Vaul Drawer States - Right Side */
 [vaul-drawer][data-state="open"],
 [vaul-drawer][data-state="open"] > * {
