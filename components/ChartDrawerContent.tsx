@@ -44,7 +44,7 @@ export function ChartDrawerContent({
   
   const sidebarClass = sidebarPadding === undefined ? 'drawer-sidebar' : 'flex-shrink-0 border-l border-gradient-border overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden';
   const sidebarStyle = sidebarPadding !== undefined ? {
-    width: '288px',
+    width: 'var(--drawer-sidebar-width, 256px)',
     padding: sidebarPadding,
     scrollbarWidth: 'none' as const,
     msOverflowStyle: 'none' as const,

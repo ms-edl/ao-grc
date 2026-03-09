@@ -10,6 +10,7 @@ import { SharedTimeAxis } from '../components/charts/SharedTimeAxis';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
+import { Icon } from '../components/ui/icons';
 import { ChartItemConfig } from './types';
 
 /**
@@ -312,12 +313,39 @@ export default function CombinedLatencyPage() {
                         onHoverChange={setIsBrushHovered}
                       />
                     </div>
-                    <SharedTimeAxis
-                      data={brushData}
-                      xKey="x"
-                      startIndex={sharedRange.startIndex}
-                      endIndex={sharedRange.endIndex}
-                    />
+                    {/* Global X-axis row: time axis + time range button */}
+                    <div
+                      className="flex items-center"
+                      style={{
+                        background: 'rgb(var(--surface-tile))',
+                        borderTop: '1px solid rgb(var(--border-border-flat))',
+                        paddingTop: 4,
+                        paddingBottom: 8,
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <SharedTimeAxis
+                          data={brushData}
+                          xKey="x"
+                          startIndex={sharedRange.startIndex}
+                          endIndex={sharedRange.endIndex}
+                        />
+                      </div>
+                      <div
+                        className="flex-shrink-0 flex items-center justify-center"
+                        style={{ width: 'var(--drawer-sidebar-width, 256px)' }}
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
+                        >
+                          <Icon name="clock" size={16} />
+                          <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
+                            Last 14 days
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : null
               }

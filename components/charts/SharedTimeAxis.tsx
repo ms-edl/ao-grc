@@ -41,13 +41,7 @@ export function SharedTimeAxis({ data, xKey, startIndex, endIndex }: SharedTimeA
   if (!slicedData.length) return null;
 
   return (
-    <div style={{
-      width: '100%',
-      height: 36,
-      paddingBottom: 8,
-      background: 'rgb(var(--surface-tile))',
-      borderTop: '1px solid rgb(var(--border-border-flat))',
-    }}>
+    <div style={{ width: '100%', height: 30 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={slicedData}

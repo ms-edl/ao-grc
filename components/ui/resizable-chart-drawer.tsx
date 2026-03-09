@@ -228,6 +228,7 @@ export function ResizableChartDrawer({
                   "outline-none transition-all duration-200"
                 )}
                 style={{
+                  ['--drawer-sidebar-width' as any]: '256px',
                   border: isResizeHandleHovered 
                     ? '1px solid rgb(var(--content-tertiary))'
                     : '1px solid rgb(var(--border-border-flat))',
@@ -318,20 +319,6 @@ export function ResizableChartDrawer({
                       <Icon name="layout" size={16} />
                       <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
                         Saved views
-                      </span>
-                    </button>
-
-                    {/* Separator */}
-                    <div className="drawer-button-separator" />
-
-                    {/* Last 14 days button */}
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-action hover:bg-surface-action-hover transition-colors text-content-primary"
-                    >
-                      <Icon name="clock" size={16} />
-                      <span className="ui-12-book" style={{ whiteSpace: 'nowrap' }}>
-                        Last 14 days
                       </span>
                     </button>
 
