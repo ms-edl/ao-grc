@@ -95,6 +95,13 @@ export interface BaseChartCoreProps<TData = any> {
    * If no right axis exists, a hidden spacer axis is added.
    */
   sharedRightAxisWidth?: number;
+  
+  /**
+   * When true, hides X-axis tick text and reclaims the vertical space.
+   * Used in drawer mode when a global shared time axis is rendered
+   * in the footer instead.
+   */
+  hideXAxisLabels?: boolean;
 }
 
 /**
@@ -127,6 +134,7 @@ export function BaseChartCore<TData = any>({
   endIndex,
   sharedLeftAxisWidth,
   sharedRightAxisWidth,
+  hideXAxisLabels = false,
 }: BaseChartCoreProps<TData>) {
   // Generate X-axis ticks using time axis hook
   const { ticks: xTicks, renderTick } = useTimeAxis({
@@ -158,12 +166,13 @@ export function BaseChartCore<TData = any>({
           {/* X-Axis */}
           <XAxis
             dataKey={xKey}
-            tickMargin={8}
+            tickMargin={hideXAxisLabels ? 0 : 8}
             axisLine={false}
             tickLine={false}
             interval={0}
             ticks={xTicks as any}
-            tick={renderTick as any}
+            tick={hideXAxisLabels ? false : (renderTick as any)}
+            height={hideXAxisLabels ? 1 : undefined}
           />
           
           {/* Y-Axes - configured dynamically */}

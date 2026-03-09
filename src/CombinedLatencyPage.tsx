@@ -6,6 +6,7 @@ import { AvailableWidget } from '../components/ui/chart-drawer';
 import { SyncedChartProvider } from '../components/SyncedChartContext';
 import { SharedAxisWidthProvider } from '../components/charts/context/SharedAxisWidthContext';
 import { SharedTimeDomainProvider, TimeDomain } from '../components/charts/context/SharedTimeDomainContext';
+import { SharedTimeAxis } from '../components/charts/SharedTimeAxis';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
@@ -224,6 +225,7 @@ export default function CombinedLatencyPage() {
           height={chartHeights.multidevice}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
+          hideXAxisLabels={true}
         />
       ),
     },
@@ -241,6 +243,7 @@ export default function CombinedLatencyPage() {
           height={chartHeights.wan}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
+          hideXAxisLabels={true}
         />
       ),
     },
@@ -274,41 +277,49 @@ export default function CombinedLatencyPage() {
       </div>
 
       {/* Shared Drawer with Both Charts */}
-      <ResizableChartDrawer
-        open={isSharedDrawerOpen}
-        onOpenChange={setIsSharedDrawerOpen}
-        deviceName="C4000LG2117813461"
-        deviceType="Router"
-        deviceStatus="Online since 3d ago"
-        deviceAvatar="/AXON C4000.png"
-        chartTags={[
-          { id: 'client-latency', label: 'Client history · Latency' },
-          { id: 'wan-latency', label: 'WAN history · Latency' },
-        ]}
-        onAddChart={() => console.log('Add chart clicked')}
-        availableWidgets={availableWidgets}
-        onWidgetSelect={handleWidgetSelect}
-        defaultSize={60}
-        minSize={40}
-        maxSize={90}
-        bottomContent={
-          brushData.length > 0 ? (
-            <SimplifiedBrush
-              data={brushData}
-              xKey="x"
-              startIndex={sharedRange.startIndex}
-              endIndex={sharedRange.endIndex}
-              minSelectionPoints={6}
-              maxSelectionPoints={24 * 15}
-              onChange={handleBrushChange}
-              onHoverChange={setIsBrushHovered}
-            />
-          ) : null
-        }
-      >
-        <SyncedChartProvider syncEnabled={true}>
-          <SharedTimeDomainProvider value={sharedTimeDomain}>
-            <SharedAxisWidthProvider>
+      <SyncedChartProvider syncEnabled={true}>
+        <SharedTimeDomainProvider value={sharedTimeDomain}>
+          <SharedAxisWidthProvider>
+            <ResizableChartDrawer
+              open={isSharedDrawerOpen}
+              onOpenChange={setIsSharedDrawerOpen}
+              deviceName="C4000LG2117813461"
+              deviceType="Router"
+              deviceStatus="Online since 3d ago"
+              deviceAvatar="/AXON C4000.png"
+              chartTags={[
+                { id: 'client-latency', label: 'Client history · Latency' },
+                { id: 'wan-latency', label: 'WAN history · Latency' },
+              ]}
+              onAddChart={() => console.log('Add chart clicked')}
+              availableWidgets={availableWidgets}
+              onWidgetSelect={handleWidgetSelect}
+              defaultSize={60}
+              minSize={40}
+              maxSize={90}
+              bottomContent={
+                brushData.length > 0 ? (
+                  <div className="flex flex-col">
+                    <SimplifiedBrush
+                      data={brushData}
+                      xKey="x"
+                      startIndex={sharedRange.startIndex}
+                      endIndex={sharedRange.endIndex}
+                      minSelectionPoints={6}
+                      maxSelectionPoints={24 * 15}
+                      onChange={handleBrushChange}
+                      onHoverChange={setIsBrushHovered}
+                    />
+                    <SharedTimeAxis
+                      data={brushData}
+                      xKey="x"
+                      startIndex={sharedRange.startIndex}
+                      endIndex={sharedRange.endIndex}
+                    />
+                  </div>
+                ) : null
+              }
+            >
               <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
                 {orderedCharts.map(chart => (
                   <SortableChartItem key={chart.id} id={chart.id}>
@@ -316,10 +327,10 @@ export default function CombinedLatencyPage() {
                   </SortableChartItem>
                 ))}
               </SortableChartContainer>
-            </SharedAxisWidthProvider>
-          </SharedTimeDomainProvider>
-        </SyncedChartProvider>
-      </ResizableChartDrawer>
+            </ResizableChartDrawer>
+          </SharedAxisWidthProvider>
+        </SharedTimeDomainProvider>
+      </SyncedChartProvider>
     </>
   );
 }

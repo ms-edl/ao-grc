@@ -172,6 +172,10 @@ interface MultiDeviceLatencyChartProps {
    * Whether the brush is currently being adjusted
    */
   isBrushAdjusting?: boolean;
+  /**
+   * Hide X-axis time labels (used when a global shared time axis is active)
+   */
+  hideXAxisLabels?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -191,6 +195,7 @@ export default function MultiDeviceLatencyChart({
   metricType,
   onMetricTypeChange,
   isBrushAdjusting = false,
+  hideXAxisLabels = false,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -1296,6 +1301,7 @@ export default function MultiDeviceLatencyChart({
               ]}
               sharedLeftAxisWidth={sharedLeftAxisWidth}
               sharedRightAxisWidth={sharedRightAxisWidth}
+              hideXAxisLabels={hideXAxisLabels}
               startIndex={0}
               endIndex={chartData.length - 1}
               enableSync={!!enableSync}

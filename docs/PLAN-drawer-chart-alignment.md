@@ -112,48 +112,60 @@ Used for both left and right axes. Charts without a right axis report `right: 0`
 
 ---
 
-## Phase 3: Global shared X-axis footer
+## Phase 3: Global shared X-axis footer ✅ COMPLETE
 
 **Goal**: Single time axis at the bottom of the drawer, below the brush.
+
+**Status**: Implemented and committed.
+
+### Implementation notes
+
+- **SharedTimeAxis uses a minimal Recharts `<LineChart>`** with just an `<XAxis>` instead of a custom SVG. This guarantees pixel-perfect alignment with chart plot areas by using the same layout engine and data-to-pixel mapping as the charts.
+- **`SharedAxisWidthProvider` was lifted** above `ResizableChartDrawer` so both chart children and `bottomContent` (SharedTimeAxis) can access the shared axis widths via React context.
+- **Per-chart X-axis labels are hidden with space reclaimed** (~30px recovered per chart) via `hideXAxisLabels` prop — XAxis rendered with `tick={false}` and `height={1}`.
+- **Footer padding changed from `6rem` to `1.5rem`** (24px) to match the `drawer-wrapper p-6` chart container padding, ensuring the SharedTimeAxis ticks align with chart grid lines.
+- **Footer height increased from 100px to 130px**, `pb-[120px]` bumped to `pb-[150px]`.
+- **`useSharedAxisWidths()` read-only hook** added to `SharedAxisWidthContext` for components that need alignment info without contributing axis measurements.
 
 ### Step 3.1 — Create `SharedTimeAxis` component
 
 **New file**: `components/charts/SharedTimeAxis.tsx`
 
-- Renders time axis labels for the shared time domain.
-- Props: `data`, `xKey`, `startIndex`, `endIndex`, `leftOffset` (= `sharedLeftAxisWidth`), `rightOffset` (= `sharedRightAxisWidth`).
-- Implementation: Lightweight SVG that renders tick labels at the correct horizontal positions. Reuses `useTimeAxis` for tick generation and consistent styling with the charts.
-- Does not need a full Recharts chart — a simple SVG with positioned `<text>` elements is sufficient.
+- Minimal Recharts `<LineChart>` with only an `<XAxis>` — no lines, grid, or Y-axes.
+- Reads `sharedLeftAxisWidth` / `sharedRightAxisWidth` from context via `useSharedAxisWidths()` and applies them as left/right margins.
+- Slices `data` to `[startIndex, endIndex]` to match chart data arrays.
+- Uses `useTimeAxis` hook for tick generation → identical ticks and styling to the charts.
 
 ### Step 3.2 — Integrate into drawer footer
 
 **Files**: `src/CombinedLatencyPage.tsx`, `components/ui/resizable-chart-drawer.tsx`
 
-- In `bottomContent`, render `<SharedTimeAxis>` below the existing `<SimplifiedBrush>`.
-- Increase footer height from 100px to ~130px to accommodate the axis.
-- Adjust `pb-[120px]` on `drawer-wrapper` to match new footer height.
-- `SharedTimeAxis` receives `leftOffset` from the shared axis width context so it aligns with chart plot areas.
+- `bottomContent` wraps `<SimplifiedBrush>` and `<SharedTimeAxis>` in a flex column.
+- `SharedAxisWidthProvider` and `SharedTimeDomainProvider` lifted above `ResizableChartDrawer` so SharedTimeAxis in `bottomContent` can access both contexts.
+- Footer height: 100px → 130px; `pb-[120px]` → `pb-[150px]`.
+- Footer padding: `6rem` → `1.5rem` (matching chart container `p-6`).
 
 ### Step 3.3 — Hide per-chart X-axis time labels
 
 **File**: `components/charts/base/BaseChartCore.tsx`
 
-- Add optional `hideXAxisLabels?: boolean` prop.
-- When true: keep the `<XAxis>` element but suppress tick text rendering (e.g., render tick as empty/transparent). The X-axis space, grid, and structure remain unchanged — only the visible time label text is removed.
-- `CartesianGrid vertical={false}` stays as-is (no vertical grid lines added).
+- Added `hideXAxisLabels?: boolean` prop.
+- When true: `tick={false}`, `height={1}`, `tickMargin={0}` — reclaims ~30px per chart.
+- XAxis element still present (Recharts needs it for data mapping), but visually invisible.
 
 ### Step 3.4 — Pass flag in drawer mode
 
-**File**: `src/CombinedLatencyPage.tsx`
+**Files**: `src/CombinedLatencyPage.tsx`, `components/WanLatencyChart.tsx`, `components/MultiDeviceLatencyChart.tsx`
 
-- Pass `hideXAxisLabels={true}` to each chart's drawer variant when the global footer axis is active.
+- Both chart components accept `hideXAxisLabels` prop and forward to `BaseChartCore`.
+- `CombinedLatencyPage` passes `hideXAxisLabels={true}` to both drawer variants.
 
 ### Validation
 
-- Footer axis labels align horizontally with chart plot areas (same left offset).
-- Per-chart bottom area has no time label text.
+- Footer axis labels align horizontally with chart plot areas (same left/right offsets via shared context).
+- Per-chart bottom area has no time label text; ~30px space reclaimed per chart.
 - Brush range changes → footer axis updates ticks accordingly.
-- Footer axis styling matches what was previously shown on individual charts.
+- Footer axis styling matches what was previously shown on individual charts (same `useTimeAxis` hook and `renderTick` callback).
 
 ---
 
@@ -168,10 +180,10 @@ Used for both left and right axes. Charts without a right axis report `right: 0`
 | ~~2.2~~ | ~~`components/charts/utils/measureAxisWidth.ts`~~ | ~~New~~ ✅ |
 | ~~2.3~~ | ~~`components/charts/base/BaseChartCore.tsx`~~ | ~~Modify~~ ✅ |
 | ~~2.4~~ | ~~`src/CombinedLatencyPage.tsx`, `components/WanLatencyChart.tsx`, `components/MultiDeviceLatencyChart.tsx`~~ | ~~Modify~~ ✅ |
-| 3.1 | `components/charts/SharedTimeAxis.tsx` | New |
-| 3.2 | `src/CombinedLatencyPage.tsx`, `components/ui/resizable-chart-drawer.tsx` | Modify |
-| 3.3 | `components/charts/base/BaseChartCore.tsx` | Modify |
-| 3.4 | `src/CombinedLatencyPage.tsx` | Modify |
+| ~~3.1~~ | ~~`components/charts/SharedTimeAxis.tsx`~~ | ~~New~~ ✅ |
+| ~~3.2~~ | ~~`src/CombinedLatencyPage.tsx`, `components/ui/resizable-chart-drawer.tsx`~~ | ~~Modify~~ ✅ |
+| ~~3.3~~ | ~~`components/charts/base/BaseChartCore.tsx`~~ | ~~Modify~~ ✅ |
+| ~~3.4~~ | ~~`src/CombinedLatencyPage.tsx`, `components/WanLatencyChart.tsx`, `components/MultiDeviceLatencyChart.tsx`~~ | ~~Modify~~ ✅ |
 
 ---
 

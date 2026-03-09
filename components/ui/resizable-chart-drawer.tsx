@@ -357,7 +357,7 @@ export function ResizableChartDrawer({
                 {/* Content */}
                 <div className="flex-1 overflow-hidden">
                   <div className="h-full overflow-y-auto overflow-x-visible" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
-                    <div className="drawer-wrapper p-6 pb-[120px]" style={{ overflow: 'visible' }}>
+                    <div className="drawer-wrapper p-6 pb-[150px]" style={{ overflow: 'visible' }}>
                       {/* Chart Tags Section */}
                       {((chartTags && chartTags.length > 0) || onAddChart) && (
                         <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -441,7 +441,7 @@ export function ResizableChartDrawer({
                   <div 
                     className="flex-shrink-0 absolute bottom-0 left-0 right-0"
                     style={{ 
-                      height: '100px',
+                      height: '130px',
                       overflow: 'visible',
                       zIndex: 1001,
                     }}
@@ -454,13 +454,13 @@ export function ResizableChartDrawer({
                         zIndex: 1,
                       }}
                     />
-                    {/* Brush Content Layer */}
+                    {/* Brush + Time Axis Content Layer */}
                     <div 
                       className="py-4 h-full relative transition-all duration-300" 
                       style={{ 
                         zIndex: 2, 
-                        paddingLeft: isSidebarOpen ? 'calc(256px + 1.5rem)' : '6rem', 
-                        paddingRight: '6rem' 
+                        paddingLeft: isSidebarOpen ? 'calc(256px + 1.5rem)' : '1.5rem', 
+                        paddingRight: '1.5rem' 
                       }}
                     >
                       {bottomContent}

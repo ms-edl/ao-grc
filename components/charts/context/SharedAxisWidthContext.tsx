@@ -72,6 +72,19 @@ export function SharedAxisWidthProvider({ children }: { children: React.ReactNod
  * to the measured widths passed in.
  * Automatically unregisters when the component unmounts.
  */
+/**
+ * Read-only hook to get the shared axis widths without reporting.
+ * Used by components (like SharedTimeAxis) that need alignment info
+ * but don't contribute their own axis measurements.
+ */
+export function useSharedAxisWidths() {
+  const ctx = useContext(SharedAxisWidthContext);
+  return {
+    sharedLeftAxisWidth: ctx?.sharedLeftAxisWidth ?? LEFT_FLOOR,
+    sharedRightAxisWidth: ctx?.sharedRightAxisWidth ?? RIGHT_FLOOR,
+  };
+}
+
 export function useSharedAxisWidth(chartId: string, leftWidth: number, rightWidth: number) {
   const ctx = useContext(SharedAxisWidthContext);
   const reportWidths = ctx?.reportWidths;

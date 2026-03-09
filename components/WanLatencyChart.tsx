@@ -131,6 +131,10 @@ interface WanLatencyChartProps {
    * Whether the brush is currently being adjusted
    */
   isBrushAdjusting?: boolean;
+  /**
+   * Hide X-axis time labels (used when a global shared time axis is active)
+   */
+  hideXAxisLabels?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -150,6 +154,7 @@ export default function WanLatencyChart({
   metricType,
   onMetricTypeChange,
   isBrushAdjusting = false,
+  hideXAxisLabels = false,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -1118,6 +1123,7 @@ export default function WanLatencyChart({
               ]}
               sharedLeftAxisWidth={sharedLeftAxisWidth}
               sharedRightAxisWidth={sharedRightAxisWidth}
+              hideXAxisLabels={hideXAxisLabels}
               startIndex={0}
               endIndex={aggregatedData.length - 1}
               enableSync={!!enableSync}
