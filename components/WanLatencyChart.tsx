@@ -30,6 +30,8 @@ import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 import { Icon } from "./ui/icons";
+import { useSharedAxisWidth } from "./charts/context/SharedAxisWidthContext";
+import { measureYAxisWidth } from "./charts/utils/measureAxisWidth";
 
 type Row = {
   x: string; // ISO timestamp
@@ -347,6 +349,19 @@ export default function WanLatencyChart({
       packet_loss_percent: calculateNiceTicks(yAxisDomains.packet_loss_percent as [number, number], 5),
     };
   }, [yAxisDomains]);
+
+  // Measure Y-axis widths for shared alignment in drawer mode
+  const measuredLeftWidth = useMemo(
+    () => measureYAxisWidth(yAxisTicks.latency_ms.map(String)),
+    [yAxisTicks.latency_ms],
+  );
+  const measuredRightWidth = useMemo(
+    () => measureYAxisWidth(yAxisTicks.packet_loss_percent.map(String)),
+    [yAxisTicks.packet_loss_percent],
+  );
+  const { sharedLeftAxisWidth, sharedRightAxisWidth } = useSharedAxisWidth(
+    'wan', measuredLeftWidth, measuredRightWidth,
+  );
 
   // Compute aggregated data with avg/min/max for each metric using rolling window
   const aggregatedData = useMemo(() => {
@@ -1016,9 +1031,6 @@ export default function WanLatencyChart({
       };
     });
     
-    // WAN chart has 2 Y axes (left for ms, right for %), so right margin should be 8
-    const hasRightYAxis = true;
-    const rightMargin = hasRightYAxis ? 0 : 32;
     
     return (
       <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ height: `${chartHeight + 90}px` }}>
@@ -1099,11 +1111,13 @@ export default function WanLatencyChart({
               data={aggregatedData}
               xKey="x"
               height={chartHeight}
-              margin={{ top: 8, right: rightMargin, left: 0, bottom: 8 }}
+              margin={{ top: 8, right: 0, left: 0, bottom: 8 }}
               yAxisConfig={[
                 { id: "left", orientation: "left", domain: yAxisDomains.latency_ms as [number, number], ticks: yAxisTicks.latency_ms, label: "ms", width: 50 },
                 { id: "right", orientation: "right", domain: yAxisDomains.packet_loss_percent as [number, number], label: "%", width: 50 },
               ]}
+              sharedLeftAxisWidth={sharedLeftAxisWidth}
+              sharedRightAxisWidth={sharedRightAxisWidth}
               startIndex={0}
               endIndex={aggregatedData.length - 1}
               enableSync={!!enableSync}

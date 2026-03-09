@@ -2,11 +2,11 @@
 
 ## Problem
 
-Charts stacked inside the GRC drawer (`ResizableChartDrawer` under `CombinedLatencyPage`) have misaligned plot areas because each chart independently sizes its left Y-axis. Charts with wider Y-axis labels push their plot area to the right, breaking horizontal alignment across charts.
+Charts stacked inside the GRC drawer (`ResizableChartDrawer` under `CombinedLatencyPage`) have misaligned plot areas because each chart independently sizes its Y-axes. Differences in left Y-axis label width push plot areas to different horizontal positions. Additionally, charts differ on the right side — `WanLatencyChart` has a right Y-axis (50px for packet loss %) while `MultiDeviceLatencyChart` has no right axis (32px right margin), causing ~18px right-edge misalignment.
 
 ## Solution
 
-1. **Shared Y-axis width (Option 2)**: Compute the maximum required left Y-axis width across all visible drawer charts and apply it uniformly.
+1. **Shared Y-axis width (Option 2)**: Compute the maximum required Y-axis width across all visible drawer charts and apply it uniformly — both left and right sides.
 2. **Global shared X-axis footer**: A single time axis at the bottom of the drawer (below the brush), with per-chart time labels removed.
 
 ## Decisions
@@ -21,7 +21,7 @@ Charts stacked inside the GRC drawer (`ResizableChartDrawer` under `CombinedLate
 | Phasing | Phase 1 → Phase 2 (ship & validate) → Phase 3 |
 | Drawer resize | Y-axis width depends on labels not drawer width — no recalc needed on resize |
 | Chart add/remove | Recalculate shared width when chart set changes |
-| Right Y-axis | Left side only for now |
+| Y-axis coordination | Both left and right sides |
 
 ---
 
@@ -29,57 +29,24 @@ Charts stacked inside the GRC drawer (`ResizableChartDrawer` under `CombinedLate
 
 **Goal**: Both charts' drawer variants consume `BaseChartCore` instead of inline Recharts boilerplate.
 
-**Status**: Completed. Both drawer variants now use `BaseChartCore`. Visually verified pixel-identical output.
-
-### Step 1.1 — Enhance `BaseChartCore`
-
-**File**: `components/charts/base/BaseChartCore.tsx` (+ `components/charts/types/ChartTypes.ts`)
-
-1. **Make Y-axis `ticks` optional** — Only pass `ticks` to `<YAxis>` when defined in config, so Recharts can auto-generate (needed for WanLatencyChart's right axis which omits explicit ticks).
-2. **Make tooltip `position` configurable** — Add optional `tooltipPosition` prop. Fall back to current `{ y: 0 }` default if not provided.
-3. **Add `renderDefs` prop** — Optional `() => ReactNode` for SVG `<defs>` (hatch patterns, gradients). Render inside `<LineChart>` before other children.
-
-These are backward-compatible — existing consumers of `BaseChartCore` won't break.
-
-### Step 1.2 — Refactor `WanLatencyChart` drawer variant
-
-**File**: `components/WanLatencyChart.tsx`
-
-Replace the drawer variant's inline Recharts block (~lines 817–1010) with `<BaseChartCore>`:
-
-- `yAxisConfig`: Two entries — left (`latency_ms`, width 50) and right (`packet_loss_percent`, width 50, no explicit ticks).
-- `renderLines()`: All `<Line>` and `<ReferenceLine>` elements.
-- `renderTooltip()`: `<CustomTooltip />`.
-- `renderReferenceElements()`: `<ReferenceLine>` with `<ChartReferenceLabel>`.
-- `margin`: `{ top: 8, right: 0, left: 0, bottom: 8 }` (right is 0 because right Y-axis is present).
-- `startIndex` / `endIndex`: From `sharedRange`.
-- Remove the drawer variant's own `useTimeAxis` call — `BaseChartCore` handles this internally.
-
-**Validation**: Visual diff — drawer WanLatencyChart should be pixel-identical before and after.
-
-### Step 1.3 — Refactor `MultiDeviceLatencyChart` drawer variant
-
-**File**: `components/MultiDeviceLatencyChart.tsx`
-
-Replace the drawer variant's inline Recharts block (~lines 956–1141) with `<BaseChartCore>`:
-
-- `yAxisConfig`: One entry — left (`latency_ms`, domain `[0, 30]`).
-  - Note: domain is currently hardcoded to `[0, 30]` in the drawer variant while the default variant uses `yAxisDomain`. Flag as potential bug to revisit.
-- `renderLines()`: All `<Line>` elements with band-specific `strokeDasharray`.
-- `renderTooltip()`: `<CustomTooltip />`.
-- `renderReferenceElements()`: Outage `<ReferenceArea>` elements (both fill and hatch).
-- `renderDefs()`: `<defs><pattern id="outageHatch-drawer" ...>` block.
-- `margin`: `{ top: 8, right: 32, left: 0, bottom: 8 }`.
-- `startIndex` / `endIndex`: From `sharedRange`.
-- Remove the drawer variant's custom `generateSmartTicks` usage — `BaseChartCore`'s `useTimeAxis` handles this identically.
-
-**Validation**: Visual diff — drawer MultiDeviceLatencyChart should be pixel-identical before and after.
+**Status**: Implemented and committed.
 
 ---
 
-## Phase 2: Shared Y-axis width
+## Phase 2: Shared Y-axis width (left + right) ✅ COMPLETE
 
-**Goal**: All drawer charts share the same left Y-axis width, determined by the widest labels.
+**Goal**: All drawer charts share the same left Y-axis width and right Y-axis width/margin, so plot areas align on both edges.
+
+**Status**: Implemented and committed.
+
+### Current right-side state
+
+| Chart | Right Y-axis | Right margin | Effective right space |
+|-------|-------------|-------------|----------------------|
+| `WanLatencyChart` | Yes — 50px (`packet_loss_percent`) | `right: 0` | ~50px |
+| `MultiDeviceLatencyChart` | No | `right: 32` | 32px |
+
+The right edges of plot areas are misaligned by ~18px. The fix is the same mechanism as the left: compute a shared max and apply uniformly.
 
 ### Step 2.1 — Create `SharedAxisWidthContext`
 
@@ -87,10 +54,11 @@ Replace the drawer variant's inline Recharts block (~lines 956–1141) with `<Ba
 
 Provider + hook that:
 
-- Holds a map of `{ [chartId: string]: number }` — each chart's required left Y-axis width.
-- Exposes `reportWidth(chartId: string, width: number)` for charts to report their computed width.
-- Exposes `sharedLeftAxisWidth: number` — the max of all reported widths (with a floor of 50px).
-- Handles cleanup when a chart unmounts (removes its entry from the map, recalculates max).
+- Holds a map of `{ [chartId: string]: { left: number, right: number } }` — each chart's required left and right axis widths.
+- Exposes `reportWidths(chartId: string, left: number, right: number)` for charts to report their computed widths.
+- Exposes `sharedLeftAxisWidth: number` — max of all reported left widths (floor of 50px).
+- Exposes `sharedRightAxisWidth: number` — max of all reported right widths (floor of 0px).
+- Handles cleanup when a chart unmounts (removes its entry, recalculates both maxes).
 - Recalculates when entries change (chart add/remove/data change).
 
 ### Step 2.2 — Width computation utility
@@ -107,12 +75,18 @@ function measureYAxisWidth(labels: string[], fontSize?: number): number
 - Returns max width + padding for `tickMargin` (8px) + Y-axis label ("ms", "%").
 - Called synchronously at render time — no layout shift, no two-pass render.
 
-### Step 2.3 — Wire shared width into `BaseChartCore`
+Used for both left and right axes. Charts without a right axis report `right: 0`.
+
+### Step 2.3 — Wire shared widths into `BaseChartCore`
 
 **File**: `components/charts/base/BaseChartCore.tsx`
 
 - Add optional `sharedLeftAxisWidth?: number` prop.
-- When provided, override the first left-oriented Y-axis `width` in `yAxisConfig` with this value.
+- Add optional `sharedRightAxisWidth?: number` prop.
+- When `sharedLeftAxisWidth` is provided, override the first left-oriented Y-axis `width` in `yAxisConfig` with this value.
+- When `sharedRightAxisWidth` is provided:
+  - If the chart **has** a right Y-axis: override its `width` with this value.
+  - If the chart **does not** have a right Y-axis: set `margin.right` to this value so the plot area reserves equivalent space on the right.
 
 ### Step 2.4 — Wire into `CombinedLatencyPage`
 
@@ -120,16 +94,19 @@ function measureYAxisWidth(labels: string[], fontSize?: number): number
 
 - Wrap chart content with `<SharedAxisWidthProvider>`.
 - Each chart's drawer variant:
-  1. Computes its needed Y-axis width via `measureYAxisWidth(tickLabels)`.
-  2. Reports it to the context via `reportWidth(chartId, neededWidth)`.
-  3. Reads `sharedLeftAxisWidth` from the context.
-  4. Passes it to `<BaseChartCore sharedLeftAxisWidth={sharedLeftAxisWidth}>`.
+  1. Computes its needed left and right Y-axis widths via `measureYAxisWidth(tickLabels)`.
+  2. Reports both to the context via `reportWidths(chartId, leftWidth, rightWidth)`.
+  3. Reads `sharedLeftAxisWidth` and `sharedRightAxisWidth` from the context.
+  4. Passes both to `<BaseChartCore>`.
+- `WanLatencyChart` reports `right: measuredRightAxisWidth` (from its packet loss tick labels).
+- `MultiDeviceLatencyChart` reports `right: 0` (no right axis). It will receive `sharedRightAxisWidth` and apply it as `margin.right`, so its plot area ends at the same position as WanLatencyChart's.
 
 ### Validation
 
-- Both charts' plot areas align on the left edge.
+- Both charts' plot areas align on **both** left and right edges.
 - Add/remove a chart → remaining charts recalculate and stay aligned.
-- No visible layout shift (width is computed synchronously before paint).
+- No visible layout shift (widths are computed synchronously before paint).
+- `WanLatencyChart`'s right Y-axis labels and `MultiDeviceLatencyChart`'s empty right margin occupy the same horizontal space.
 
 **Ship & validate Phase 2 before proceeding to Phase 3.**
 
@@ -144,7 +121,7 @@ function measureYAxisWidth(labels: string[], fontSize?: number): number
 **New file**: `components/charts/SharedTimeAxis.tsx`
 
 - Renders time axis labels for the shared time domain.
-- Props: `data`, `xKey`, `startIndex`, `endIndex`, `leftOffset` (= `sharedLeftAxisWidth`), `rightOffset`.
+- Props: `data`, `xKey`, `startIndex`, `endIndex`, `leftOffset` (= `sharedLeftAxisWidth`), `rightOffset` (= `sharedRightAxisWidth`).
 - Implementation: Lightweight SVG that renders tick labels at the correct horizontal positions. Reuses `useTimeAxis` for tick generation and consistent styling with the charts.
 - Does not need a full Recharts chart — a simple SVG with positioned `<text>` elements is sufficient.
 
@@ -184,13 +161,13 @@ function measureYAxisWidth(labels: string[], fontSize?: number): number
 
 | Step | Files | Type |
 |------|-------|------|
-| 1.1 | `components/charts/base/BaseChartCore.tsx`, `components/charts/types/ChartTypes.ts` | Modify |
-| 1.2 | `components/WanLatencyChart.tsx` | Modify |
-| 1.3 | `components/MultiDeviceLatencyChart.tsx` | Modify |
-| 2.1 | `components/charts/context/SharedAxisWidthContext.tsx` | New |
-| 2.2 | `components/charts/utils/measureAxisWidth.ts` | New |
-| 2.3 | `components/charts/base/BaseChartCore.tsx` | Modify |
-| 2.4 | `src/CombinedLatencyPage.tsx` | Modify |
+| ~~1.1~~ | ~~`components/charts/base/BaseChartCore.tsx`, `components/charts/types/ChartTypes.ts`~~ | ~~Modify~~ ✅ |
+| ~~1.2~~ | ~~`components/WanLatencyChart.tsx`~~ | ~~Modify~~ ✅ |
+| ~~1.3~~ | ~~`components/MultiDeviceLatencyChart.tsx`~~ | ~~Modify~~ ✅ |
+| ~~2.1~~ | ~~`components/charts/context/SharedAxisWidthContext.tsx`~~ | ~~New~~ ✅ |
+| ~~2.2~~ | ~~`components/charts/utils/measureAxisWidth.ts`~~ | ~~New~~ ✅ |
+| ~~2.3~~ | ~~`components/charts/base/BaseChartCore.tsx`~~ | ~~Modify~~ ✅ |
+| ~~2.4~~ | ~~`src/CombinedLatencyPage.tsx`, `components/WanLatencyChart.tsx`, `components/MultiDeviceLatencyChart.tsx`~~ | ~~Modify~~ ✅ |
 | 3.1 | `components/charts/SharedTimeAxis.tsx` | New |
 | 3.2 | `src/CombinedLatencyPage.tsx`, `components/ui/resizable-chart-drawer.tsx` | Modify |
 | 3.3 | `components/charts/base/BaseChartCore.tsx` | Modify |
@@ -201,6 +178,5 @@ function measureYAxisWidth(labels: string[], fontSize?: number): number
 ## Future Tasks
 
 - [ ] **Refactor default (standalone) variants** of `WanLatencyChart` and `MultiDeviceLatencyChart` to consume `BaseChartCore`. Lower priority; separate task.
-- [ ] **Right Y-axis coordination** — Align right edges of plot areas across charts (WanLatencyChart has right axis at 50px, MultiDeviceLatencyChart has 32px right margin → ~18px misalignment). Deferred.
 - [ ] **New chart types** (quality steps with text Y-axis labels, etc.) — When added, they benefit automatically from `BaseChartCore` and `SharedAxisWidthContext`.
 - [ ] **Fix MultiDeviceLatencyChart drawer Y-axis domain** — Currently hardcoded to `[0, 30]` while the default variant uses dynamic `yAxisDomain`. Likely a bug.

@@ -82,6 +82,19 @@ export interface BaseChartCoreProps<TData = any> {
    */
   startIndex?: number;
   endIndex?: number;
+  
+  /**
+   * Shared left Y-axis width for cross-chart alignment.
+   * When set, overrides the width of left-oriented Y-axes.
+   */
+  sharedLeftAxisWidth?: number;
+  
+  /**
+   * Shared right Y-axis width for cross-chart alignment.
+   * When set, overrides the width of right-oriented Y-axes.
+   * If no right axis exists, a hidden spacer axis is added.
+   */
+  sharedRightAxisWidth?: number;
 }
 
 /**
@@ -112,6 +125,8 @@ export function BaseChartCore<TData = any>({
   onMouseLeave,
   startIndex = 0,
   endIndex,
+  sharedLeftAxisWidth,
+  sharedRightAxisWidth,
 }: BaseChartCoreProps<TData>) {
   // Generate X-axis ticks using time axis hook
   const { ticks: xTicks, renderTick } = useTimeAxis({
@@ -152,34 +167,56 @@ export function BaseChartCore<TData = any>({
           />
           
           {/* Y-Axes - configured dynamically */}
-          {yAxisConfig.map((config) => (
-            <YAxis
-              key={config.id}
-              yAxisId={config.id}
-              orientation={config.orientation || 'left'}
-              tickMargin={8}
-              axisLine={false}
-              tickLine={false}
-              domain={config.domain}
-              {...(config.ticks ? { ticks: config.ticks } : {})}
-              label={
-                config.label
-                  ? {
-                      value: config.label,
-                      angle: config.orientation === 'right' ? 90 : -90,
-                      position: config.orientation === 'right' ? 'insideRight' : 'insideLeft',
-                      style: { fill: 'rgb(var(--content-tertiary))', fontSize: 12 },
-                    }
-                  : undefined
-              }
-              tick={{
-                fontSize: 11,
-                fill: 'rgb(var(--content-tertiary))',
-                style: { userSelect: 'none' } as any,
-              }}
-              width={config.width || 50}
-            />
-          ))}
+          {yAxisConfig.map((config) => {
+            const isRight = config.orientation === 'right';
+            const sharedWidth = isRight ? sharedRightAxisWidth : sharedLeftAxisWidth;
+            const effectiveWidth = sharedWidth ?? config.width ?? 50;
+
+            return (
+              <YAxis
+                key={config.id}
+                yAxisId={config.id}
+                orientation={config.orientation || 'left'}
+                tickMargin={8}
+                axisLine={false}
+                tickLine={false}
+                domain={config.domain}
+                {...(config.ticks ? { ticks: config.ticks } : {})}
+                label={
+                  config.label
+                    ? {
+                        value: config.label,
+                        angle: isRight ? 90 : -90,
+                        position: isRight ? 'insideRight' : 'insideLeft',
+                        style: { fill: 'rgb(var(--content-tertiary))', fontSize: 12 },
+                      }
+                    : undefined
+                }
+                tick={{
+                  fontSize: 11,
+                  fill: 'rgb(var(--content-tertiary))',
+                  style: { userSelect: 'none' } as any,
+                }}
+                width={effectiveWidth}
+              />
+            );
+          })}
+
+          {/* Hidden right axis spacer for alignment when chart has no right axis */}
+          {sharedRightAxisWidth != null
+            && sharedRightAxisWidth > 0
+            && !yAxisConfig.some(c => c.orientation === 'right')
+            && (
+              <YAxis
+                yAxisId="__shared_right_spacer"
+                orientation="right"
+                width={sharedRightAxisWidth}
+                tick={false}
+                axisLine={false}
+                tickLine={false}
+              />
+            )
+          }
           
           {/* Tooltip */}
           <Tooltip

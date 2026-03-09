@@ -24,12 +24,14 @@ import { GraphLegendItem } from "./ui/graph-legend-item";
 import { useChartLineStyle } from "./hooks/useChartLineStyle";
 import { calculateMetrics } from "./utils/rollingWindowStats";
 import { ChartReferenceLabel } from "./ChartReferenceLabel";
-import { calculateYAxisDomainFromDevices } from "./utils/calculateYAxisDomain";
+import { calculateYAxisDomainFromDevices, calculateNiceTicks } from "./utils/calculateYAxisDomain";
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
 import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
 import { Icon } from "./ui/icons";
+import { useSharedAxisWidth } from "./charts/context/SharedAxisWidthContext";
+import { measureYAxisWidth } from "./charts/utils/measureAxisWidth";
 
 const toDate = (v: any): Date | null => {
   if (v instanceof Date) return v;
@@ -709,6 +711,19 @@ export default function MultiDeviceLatencyChart({
     return calculateYAxisDomainFromDevices(data, devicesToUse);
   }, [data, visibleDeviceIds, deviceIds]);
 
+  // Drawer Y-axis domain is hardcoded [0, 30]; generate tick labels for width measurement
+  const drawerLeftTicks = useMemo(
+    () => calculateNiceTicks([0, 30] as [number, number], 5),
+    [],
+  );
+  const measuredLeftWidth = useMemo(
+    () => measureYAxisWidth(drawerLeftTicks.map(String)),
+    [drawerLeftTicks],
+  );
+  const { sharedLeftAxisWidth, sharedRightAxisWidth } = useSharedAxisWidth(
+    'multidevice', measuredLeftWidth, 0,
+  );
+
   // Add preview data for all three metrics when hovering or in focus mode
   const chartData = useMemo(() => {
     const baseData = slicedDataBanded;
@@ -1275,10 +1290,12 @@ export default function MultiDeviceLatencyChart({
               data={chartData}
               xKey="x"
               height={chartHeight}
-              margin={{ top: 8, right: 32, left: 0, bottom: 8 }}
+              margin={{ top: 8, right: 0, left: 0, bottom: 8 }}
               yAxisConfig={[
                 { id: "latency_ms", orientation: "left", domain: [0, 30], label: "ms", width: 50 },
               ]}
+              sharedLeftAxisWidth={sharedLeftAxisWidth}
+              sharedRightAxisWidth={sharedRightAxisWidth}
               startIndex={0}
               endIndex={chartData.length - 1}
               enableSync={!!enableSync}

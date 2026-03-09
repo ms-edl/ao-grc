@@ -4,6 +4,7 @@ import WanLatencyChart from '../components/WanLatencyChart';
 import { ResizableChartDrawer } from '../components/ui/resizable-chart-drawer';
 import { AvailableWidget } from '../components/ui/chart-drawer';
 import { SyncedChartProvider } from '../components/SyncedChartContext';
+import { SharedAxisWidthProvider } from '../components/charts/context/SharedAxisWidthContext';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
@@ -296,13 +297,15 @@ export default function CombinedLatencyPage() {
         }
       >
         <SyncedChartProvider syncEnabled={true}>
-          <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
-            {orderedCharts.map(chart => (
-              <SortableChartItem key={chart.id} id={chart.id}>
-                {chart.component}
-              </SortableChartItem>
-            ))}
-          </SortableChartContainer>
+          <SharedAxisWidthProvider>
+            <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
+              {orderedCharts.map(chart => (
+                <SortableChartItem key={chart.id} id={chart.id}>
+                  {chart.component}
+                </SortableChartItem>
+              ))}
+            </SortableChartContainer>
+          </SharedAxisWidthProvider>
         </SyncedChartProvider>
       </ResizableChartDrawer>
     </>
