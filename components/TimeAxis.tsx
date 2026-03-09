@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useSharedTimeDomain, TimeDomain } from './charts/context/SharedTimeDomainContext';
 
 // Utility to convert various formats to Date
 export const toDate = (v: any): Date | null => {
@@ -33,16 +34,18 @@ interface TimeAxisResult {
  * - Adaptive density based on visible time range
  */
 export function useTimeAxis({ data, xKey, startIndex = 0, endIndex }: TimeAxisConfig): TimeAxisResult {
+  const sharedDomain = useSharedTimeDomain();
+
   const slicedData = useMemo(() => {
     const end = endIndex !== undefined ? endIndex : data.length - 1;
     return data.slice(startIndex, end + 1);
   }, [data, startIndex, endIndex]);
 
-  const generateSmartTicks = useCallback((rows: any[], xKey: string) => {
+  const generateSmartTicks = useCallback((rows: any[], xKey: string, domainOverride?: TimeDomain) => {
     if (!rows.length) return { ticks: [] as string[], dayTicks: new Set<string>() };
 
-    const firstDate = toDate((rows[0] as any)[xKey]);
-    const lastDate = toDate((rows[rows.length - 1] as any)[xKey]);
+    const firstDate = domainOverride?.start ?? toDate((rows[0] as any)[xKey]);
+    const lastDate = domainOverride?.end ?? toDate((rows[rows.length - 1] as any)[xKey]);
     if (!firstDate || !lastDate) return { ticks: [] as string[], dayTicks: new Set<string>() };
 
     const hoursDiff = Math.abs((+lastDate - +firstDate) / (1000 * 60 * 60));
@@ -128,8 +131,8 @@ export function useTimeAxis({ data, xKey, startIndex = 0, endIndex }: TimeAxisCo
   }, []);
 
   const { ticks: xTicks, dayTicks } = useMemo(
-    () => generateSmartTicks(slicedData, xKey),
-    [slicedData, xKey, generateSmartTicks]
+    () => generateSmartTicks(slicedData, xKey, sharedDomain ?? undefined),
+    [slicedData, xKey, generateSmartTicks, sharedDomain]
   );
 
   const renderTick = useCallback((props: any) => {

@@ -5,6 +5,7 @@ import { ResizableChartDrawer } from '../components/ui/resizable-chart-drawer';
 import { AvailableWidget } from '../components/ui/chart-drawer';
 import { SyncedChartProvider } from '../components/SyncedChartContext';
 import { SharedAxisWidthProvider } from '../components/charts/context/SharedAxisWidthContext';
+import { SharedTimeDomainProvider, TimeDomain } from '../components/charts/context/SharedTimeDomainContext';
 import { SimplifiedBrush } from '../components/SimplifiedBrush';
 import { SortableChartContainer } from '../components/SortableChartContainer';
 import { SortableChartItem } from '../components/SortableChartItem';
@@ -198,6 +199,15 @@ export default function CombinedLatencyPage() {
   // Use the longer dataset for brush visualization
   const brushData = multiDeviceDataLength >= wanDataLength ? multiDeviceData : wanData;
 
+  // Shared time domain so all drawer charts generate identical X-axis ticks
+  const sharedTimeDomain = useMemo<TimeDomain | null>(() => {
+    if (brushData.length === 0) return null;
+    const startRow = brushData[sharedRange.startIndex];
+    const endRow = brushData[sharedRange.endIndex];
+    if (!startRow || !endRow) return null;
+    return { start: new Date(startRow.x), end: new Date(endRow.x) };
+  }, [brushData, sharedRange]);
+
   // Chart configurations
   const chartConfigs: Record<string, ChartItemConfig & { component: JSX.Element }> = useMemo(() => ({
     multidevice: {
@@ -297,15 +307,17 @@ export default function CombinedLatencyPage() {
         }
       >
         <SyncedChartProvider syncEnabled={true}>
-          <SharedAxisWidthProvider>
-            <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
-              {orderedCharts.map(chart => (
-                <SortableChartItem key={chart.id} id={chart.id}>
-                  {chart.component}
-                </SortableChartItem>
-              ))}
-            </SortableChartContainer>
-          </SharedAxisWidthProvider>
+          <SharedTimeDomainProvider value={sharedTimeDomain}>
+            <SharedAxisWidthProvider>
+              <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
+                {orderedCharts.map(chart => (
+                  <SortableChartItem key={chart.id} id={chart.id}>
+                    {chart.component}
+                  </SortableChartItem>
+                ))}
+              </SortableChartContainer>
+            </SharedAxisWidthProvider>
+          </SharedTimeDomainProvider>
         </SyncedChartProvider>
       </ResizableChartDrawer>
     </>
