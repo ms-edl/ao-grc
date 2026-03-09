@@ -299,17 +299,19 @@ export default function CombinedLatencyPage() {
               maxSize={90}
               bottomContent={
                 brushData.length > 0 ? (
-                  <div className="flex flex-col">
-                    <SimplifiedBrush
-                      data={brushData}
-                      xKey="x"
-                      startIndex={sharedRange.startIndex}
-                      endIndex={sharedRange.endIndex}
-                      minSelectionPoints={6}
-                      maxSelectionPoints={24 * 15}
-                      onChange={handleBrushChange}
-                      onHoverChange={setIsBrushHovered}
-                    />
+                  <div className="flex flex-col h-full">
+                    <div className="px-6">
+                      <SimplifiedBrush
+                        data={brushData}
+                        xKey="x"
+                        startIndex={sharedRange.startIndex}
+                        endIndex={sharedRange.endIndex}
+                        minSelectionPoints={6}
+                        maxSelectionPoints={24 * 15}
+                        onChange={handleBrushChange}
+                        onHoverChange={setIsBrushHovered}
+                      />
+                    </div>
                     <SharedTimeAxis
                       data={brushData}
                       xKey="x"

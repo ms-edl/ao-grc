@@ -454,13 +454,12 @@ export function ResizableChartDrawer({
                         zIndex: 1,
                       }}
                     />
-                    {/* Brush + Time Axis Content Layer */}
+                    {/* Bottom Content Layer — no horizontal padding; children handle their own */}
                     <div 
-                      className="py-4 h-full relative transition-all duration-300" 
+                      className="pt-4 h-full relative transition-all duration-300" 
                       style={{ 
                         zIndex: 2, 
-                        paddingLeft: isSidebarOpen ? 'calc(256px + 1.5rem)' : '1.5rem', 
-                        paddingRight: '1.5rem' 
+                        paddingLeft: isSidebarOpen ? '256px' : 0, 
                       }}
                     >
                       {bottomContent}
