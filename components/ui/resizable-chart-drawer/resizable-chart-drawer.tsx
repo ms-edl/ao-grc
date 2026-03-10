@@ -3,11 +3,12 @@
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 import { cn } from "@/lib/utils"
-import { XIcon, Icon } from "./icons"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./resizable"
-import { TooltipButton } from "./tooltip-button"
-import { Kbd } from "./kbd"
-import { AvailableWidget } from "./chart-drawer"
+import { XIcon, Icon } from "../icons"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "../resizable"
+import { TooltipButton } from "../tooltip-button"
+import { Kbd } from "../kbd"
+import { AvailableWidget } from "../chart-drawer"
+import "./resizable-chart-drawer.css"
 
 export interface ChartTag {
   id: string
@@ -592,5 +593,5 @@ export function ResizableChartDrawer({
 }
 
 // Export the non-resizable version too for simpler cases
-export { ChartDrawer } from "./chart-drawer"
+export { ChartDrawer } from "../chart-drawer"
 
