@@ -130,21 +130,26 @@ export default function CombinedLatencyPage() {
   
   // Shared range state for drawer
   const maxDataLength = Math.max(multiDeviceDataLength, wanDataLength);
-  const [sharedRange, setSharedRange] = useState<{ startIndex: number; endIndex: number }>({
-    startIndex: 0,
-    endIndex: Math.max(0, Math.min(24 * 7 - 1, maxDataLength - 1))
-  });
+  const initialRange = { startIndex: 0, endIndex: Math.max(0, Math.min(24 * 7 - 1, maxDataLength - 1)) };
+
+  // displayRange: what drawer charts render
+  const [displayRange, setDisplayRange] = useState<{ startIndex: number; endIndex: number }>(initialRange);
+  // Transition state: idle ↔ loading (loading while brush is dragged)
+  const [transitionState, setTransitionState] = useState<'idle' | 'loading'>('idle');
   
   // Track if brush is being hovered
   const [isBrushHovered, setIsBrushHovered] = useState(false);
+  // Track if shared X-axis area is being hovered
+  const [isAxisHovered, setIsAxisHovered] = useState(false);
 
-  // Update shared range when max data length changes
+  // Update ranges when max data length changes (initial load)
   useEffect(() => {
     if (maxDataLength > 0) {
-      setSharedRange({
+      const range = {
         startIndex: 0,
         endIndex: Math.max(0, Math.min(24 * 7 - 1, maxDataLength - 1))
-      });
+      };
+      setDisplayRange(range);
     }
   }, [maxDataLength]);
 
@@ -162,8 +167,20 @@ export default function CombinedLatencyPage() {
     setIsSharedDrawerOpen(true);
   };
 
-  const handleBrushChange = useCallback((range: { startIndex: number; endIndex: number }) => {
-    setSharedRange(range);
+  // Called continuously during brush drag.
+  // Keep brush interaction local and avoid chart rerenders until commit.
+  const handleBrushDrag = useCallback((_range: { startIndex: number; endIndex: number }) => {
+    setTransitionState(prev => (prev === 'loading' ? prev : 'loading'));
+  }, []);
+
+  // Called once on brush release — commit final range immediately.
+  const handleBrushCommit = useCallback((range: { startIndex: number; endIndex: number }) => {
+    setDisplayRange(prev => (
+      prev.startIndex === range.startIndex && prev.endIndex === range.endIndex
+        ? prev
+        : range
+    ));
+    setTransitionState('idle');
   }, []);
 
   // Handle chart reordering with debounced localStorage write
@@ -204,13 +221,15 @@ export default function CombinedLatencyPage() {
   // Shared time domain so all drawer charts generate identical X-axis ticks
   const sharedTimeDomain = useMemo<TimeDomain | null>(() => {
     if (brushData.length === 0) return null;
-    const startRow = brushData[sharedRange.startIndex];
-    const endRow = brushData[sharedRange.endIndex];
+    const startRow = brushData[displayRange.startIndex];
+    const endRow = brushData[displayRange.endIndex];
     if (!startRow || !endRow) return null;
     return { start: new Date(startRow.x), end: new Date(endRow.x) };
-  }, [brushData, sharedRange]);
+  }, [brushData, displayRange]);
 
   // Chart configurations
+  const isLoading = transitionState === 'loading';
+  const isBrushVisible = isAxisHovered || isBrushHovered;
   const chartConfigs: Record<string, ChartItemConfig & { component: JSX.Element }> = useMemo(() => ({
     multidevice: {
       id: 'multidevice',
@@ -221,9 +240,10 @@ export default function CombinedLatencyPage() {
           hideDrawer={true} 
           variant="drawer" 
           enableSync={true}
-          sharedRange={sharedRange}
-          isBrushAdjusting={isBrushHovered}
+          sharedRange={displayRange}
+          isBrushAdjusting={isBrushHovered || isLoading}
           height={chartHeights.multidevice}
+          tileBorderRadius={20}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('multidevice', deltaY)}
           hideXAxisLabels={true}
@@ -239,16 +259,17 @@ export default function CombinedLatencyPage() {
           hideDrawer={true} 
           variant="drawer" 
           enableSync={true}
-          sharedRange={sharedRange}
-          isBrushAdjusting={isBrushHovered}
+          sharedRange={displayRange}
+          isBrushAdjusting={isBrushHovered || isLoading}
           height={chartHeights.wan}
+          tileBorderRadius={20}
           showResizeHandle={true}
           onHeightChange={(deltaY) => handleHeightChange('wan', deltaY)}
           hideXAxisLabels={true}
         />
       ),
     },
-  }), [chartOrder, chartHeights, sharedRange, handleHeightChange, isBrushHovered]);
+  }), [chartOrder, chartHeights, displayRange, handleHeightChange, isBrushHovered, isLoading]);
 
   // Render charts in order
   const orderedCharts = useMemo(() => {
@@ -264,6 +285,7 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleMultiDeviceDataLoad}
+            tileBorderRadius={20}
           />
         </div>
 
@@ -273,6 +295,7 @@ export default function CombinedLatencyPage() {
             onMaximize={handleMaximize} 
             hideDrawer={true}
             onDataLoad={handleWanDataLoad}
+            tileBorderRadius={20}
           />
         </div>
       </div>
@@ -287,7 +310,7 @@ export default function CombinedLatencyPage() {
               deviceName="C4000LG2117813461"
               deviceType="Router"
               deviceStatus="Online since 3d ago"
-              deviceAvatar="/AXON C4000.png"
+              deviceAvatar="/Images/router.png"
               chartTags={[
                 { id: 'client-latency', label: 'Client history · Latency' },
                 { id: 'wan-latency', label: 'WAN history · Latency' },
@@ -302,24 +325,31 @@ export default function CombinedLatencyPage() {
                 brushData.length > 0 ? (
                   <div className="drawer-footer-inner">
                     <div className="drawer-footer-brush">
-                      <SimplifiedBrush
-                        data={brushData}
-                        xKey="x"
-                        startIndex={sharedRange.startIndex}
-                        endIndex={sharedRange.endIndex}
-                        minSelectionPoints={6}
-                        maxSelectionPoints={24 * 15}
-                        onChange={handleBrushChange}
-                        onHoverChange={setIsBrushHovered}
-                      />
+                      {isBrushVisible && (
+                        <SimplifiedBrush
+                          data={brushData}
+                          xKey="x"
+                          startIndex={displayRange.startIndex}
+                          endIndex={displayRange.endIndex}
+                          minSelectionPoints={6}
+                          maxSelectionPoints={24 * 15}
+                          onChange={handleBrushDrag}
+                          onCommit={handleBrushCommit}
+                          onHoverChange={setIsBrushHovered}
+                        />
+                      )}
                     </div>
                     <div className="drawer-footer-axis-row">
-                      <div className="drawer-footer-axis">
+                      <div
+                        className="drawer-footer-axis"
+                        onMouseEnter={() => setIsAxisHovered(true)}
+                        onMouseLeave={() => setIsAxisHovered(false)}
+                      >
                         <SharedTimeAxis
                           data={brushData}
                           xKey="x"
-                          startIndex={sharedRange.startIndex}
-                          endIndex={sharedRange.endIndex}
+                          startIndex={displayRange.startIndex}
+                          endIndex={displayRange.endIndex}
                         />
                       </div>
                       <div className="drawer-footer-time-range">
@@ -333,13 +363,23 @@ export default function CombinedLatencyPage() {
                 ) : null
               }
             >
-              <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
-                {orderedCharts.map(chart => (
-                  <SortableChartItem key={chart.id} id={chart.id}>
-                    {chart.component}
-                  </SortableChartItem>
-                ))}
-              </SortableChartContainer>
+              <div className="relative" style={{ ['--drawer-chart-overlay-radius' as any]: '20px' }}>
+                <SortableChartContainer chartIds={chartOrder} onReorder={handleChartReorder}>
+                  {orderedCharts.map(chart => (
+                    <SortableChartItem key={chart.id} id={chart.id}>
+                      {chart.component}
+                    </SortableChartItem>
+                  ))}
+                </SortableChartContainer>
+
+                {/* Loading overlay during brush drag — keeps old chart visible underneath */}
+                <div
+                  className="chart-transition-overlay"
+                  data-visible={transitionState === 'loading' || undefined}
+                >
+                  <div className="chart-transition-spinner" />
+                </div>
+              </div>
             </ResizableChartDrawer>
           </SharedAxisWidthProvider>
         </SharedTimeDomainProvider>

@@ -35,6 +35,7 @@ export interface SimplifiedBrushProps {
   minSelectionPoints: number;
   maxSelectionPoints: number;
   onChange: (range: { startIndex: number; endIndex: number }) => void;
+  onCommit?: (range: { startIndex: number; endIndex: number }) => void;
   onHoverChange?: (isHovering: boolean) => void;
 }
 
@@ -57,7 +58,7 @@ const TooltipBadge: React.FC<{ label: string; visible?: boolean; side?: 'left' |
   }
   return (
     <div
-      className="px-2 py-1 rounded-md absolute-gradient-border bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200"
+      className="simplified-brush-tooltip px-2 py-1 rounded-md absolute-gradient-border bg-surface-tile text-xs text-content-primary whitespace-nowrap transition-all duration-200"
       style={baseStyle}
     >
       {label}
@@ -76,6 +77,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
   minSelectionPoints,
   maxSelectionPoints,
   onChange,
+  onCommit,
   onHoverChange,
 }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +175,8 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
 
   const handleMouseUp = useCallback(() => {
     setDragging(null);
-  }, []);
+    onCommit?.({ startIndex: localStart, endIndex: localEnd });
+  }, [localStart, localEnd, onCommit]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -228,14 +231,14 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
 
   return (
     <div 
-      className="mt-4"
+      className="simplified-brush mt-4"
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
     >
-      <div ref={trackRef} className="relative w-full" style={{ height: 64, userSelect: 'none' }}>
+      <div ref={trackRef} className="simplified-brush-track relative w-full" style={{ height: 64, userSelect: 'none' }}>
         {/* Track with simplified tick visualization */}
         <div 
-          className="absolute inset-x-4 top-2 h-8 transition-colors duration-200 rounded-lg overflow-hidden"
+          className="simplified-brush-track-viewport absolute inset-x-4 top-2 h-8 transition-colors duration-200 rounded-lg overflow-hidden"
           style={{ 
             backgroundColor: "rgb(var(--content-primary) / 0.05)",
             backdropFilter: "blur(8px)",
@@ -244,6 +247,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
         >
           {/* Tick marks */}
           <svg
+            className="simplified-brush-ticks-svg"
             width="100%"
             height="100%"
             viewBox={`0 0 ${Math.max(1, trackWidth)} 40`}
@@ -257,6 +261,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
               return (
                 <line
                   key={i}
+                  className="simplified-brush-tick"
                   x1={x}
                   y1={16}
                   x2={x}
@@ -273,7 +278,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
 
         {/* Selection band */}
         <div
-          className="absolute top-2 h-8 cursor-grab active:cursor-grabbing"
+          className="simplified-brush-selection absolute top-2 h-8 cursor-grab active:cursor-grabbing"
           style={{
             left: Math.min(handleLeft, handleRight) + 16,
             width: Math.abs(handleRight - handleLeft),
@@ -298,7 +303,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
         <div
           role="slider"
           aria-label="Start"
-          className="absolute cursor-ew-resize flex items-center justify-center"
+          className="simplified-brush-handle simplified-brush-handle-start absolute cursor-ew-resize flex items-center justify-center"
           style={{ 
             left: handleLeft + 12,  // Center the 4px wide handle
             top: 24,
@@ -328,7 +333,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
         <div
           role="slider"
           aria-label="End"
-          className="absolute cursor-ew-resize flex items-center justify-center"
+          className="simplified-brush-handle simplified-brush-handle-end absolute cursor-ew-resize flex items-center justify-center"
           style={{ 
             left: handleRight - 4,  // Center the 4px wide handle
             top: 24,

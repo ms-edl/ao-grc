@@ -1,21 +1,39 @@
 /* ===================================================================
-   Drawer Footer
+   Drawer Content + Footer
    =================================================================== */
 
-/* Fixed footer container pinned to the bottom of the drawer */
-.drawer-footer {
-  flex-shrink: 0;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 130px;
-  overflow: visible;
-  z-index: 1001;
+/* Main content shell under the header */
+.drawer-content-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* Gradient fade from transparent to surface-section */
-.drawer-footer-gradient {
+/* Scrollable chart area that also hosts sticky bottom content */
+.drawer-content-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+/* Sticky bottom content within the scrollable region */
+.drawer-content-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  overflow: visible;
+  padding-top: 16px;
+  margin-top: auto;
+  transition: padding-left 300ms ease-in-out;
+}
+
+.drawer-content-bottom::before {
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -24,33 +42,80 @@
     rgb(var(--surface-section) / 1) 100%
   );
   z-index: 1;
+  pointer-events: none;
 }
 
-/* Content layer above the gradient */
-.drawer-footer-content {
+.drawer-content-bottom > * {
   position: relative;
   z-index: 2;
-  height: 100%;
-  padding-top: 16px;
-  transition: padding-left 300ms ease-in-out;
 }
 
 /* Shift content right when the widget-selector sidebar is open */
-.drawer-footer-content.is-sidebar-open {
-  padding-left: 256px;
+.drawer-content-bottom.is-sidebar-open {
+  padding-left: var(--drawer-sidebar-width, 256px);
 }
 
 /* Vertical stack for brush + axis row */
 .drawer-footer-inner {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 /* Horizontal padding for the brush area */
 .drawer-footer-brush {
-  padding-left: 24px;
-  padding-right: 24px;
+  padding-left: var(--drawer-wrapper-pad-x, 24px);
+  padding-right: var(--drawer-wrapper-pad-x, 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Semantic classes for brush content inside drawer-footer-brush */
+.drawer-footer-brush .simplified-brush {
+  margin-top: 16px;
+}
+
+.drawer-footer-brush .simplified-brush-track {
+  position: relative;
+  width: 640px;
+  height: 64px;
+  user-select: none;
+}
+
+.drawer-footer-brush .simplified-brush-track-viewport {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 8px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: background-color 200ms;
+  background-color: rgb(var(--content-primary) / 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.drawer-footer-brush .simplified-brush-ticks-svg {
+  display: block;
+  pointer-events: none;
+}
+
+.drawer-footer-brush .simplified-brush-selection {
+  border-radius: 8px;
+  transition: background-color 150ms ease;
+  background: rgb(var(--content-primary) / 0.1);
+}
+
+.drawer-footer-brush .simplified-brush-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-footer-brush .simplified-brush-tooltip {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
 }
 
 /* Global X-axis row: time axis on the left, time-range button on the right */
@@ -59,6 +124,8 @@
   align-items: center;
   background: rgb(var(--surface-tile));
   border-top: 1px solid rgb(var(--border-border-flat));
+  padding-left: var(--drawer-wrapper-pad-x, 24px);
+  padding-right: var(--drawer-wrapper-pad-x, 24px);
 }
 
 /* Left column — stretches to fill remaining space */
@@ -66,6 +133,8 @@
   flex: 1;
   min-width: 0;
   padding: 16px 0px;
+  padding-left: var(--drawer-content-pad-x, 16px);
+  padding-right: var(--drawer-content-pad-x, 16px);
   border-right: 1px solid rgb(var(--border-border-flat));
 }
 

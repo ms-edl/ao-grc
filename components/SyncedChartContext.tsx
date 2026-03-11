@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 /**
  * Context for synchronizing chart tooltips across multiple charts
@@ -54,11 +54,11 @@ export function SyncedChartProvider({
 }: SyncedChartProviderProps) {
   const [syncedTimestamp, setSyncedTimestampState] = useState<string | null>(null);
 
-  // Wrap setter to only update if sync is enabled
+  // Wrap setter to only update if sync is enabled.
+  // Keep updates immediate for cursor responsiveness, but skip duplicate writes.
   const setSyncedTimestamp = useCallback((timestamp: string | null) => {
-    if (syncEnabled) {
-      setSyncedTimestampState(timestamp);
-    }
+    if (!syncEnabled) return;
+    setSyncedTimestampState((prev) => (prev === timestamp ? prev : timestamp));
   }, [syncEnabled]);
 
   const value: SyncedChartContextValue = {

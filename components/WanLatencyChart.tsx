@@ -28,8 +28,7 @@ import { calculateYAxisDomain, calculateNiceTicks } from "./utils/calculateYAxis
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
-import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
-import { Icon } from "./ui/icons";
+import { useSyncedChart } from "./SyncedChartContext";
 import { useSharedAxisWidth } from "./charts/context/SharedAxisWidthContext";
 import { measureYAxisWidth } from "./charts/utils/measureAxisWidth";
 
@@ -135,6 +134,10 @@ interface WanLatencyChartProps {
    * Hide X-axis time labels (used when a global shared time axis is active)
    */
   hideXAxisLabels?: boolean;
+  /**
+   * Border radius for the chart tile container
+   */
+  tileBorderRadius?: number;
 }
 
 export default function WanLatencyChart({ 
@@ -143,7 +146,6 @@ export default function WanLatencyChart({
   variant = 'default',
   enableSync = false,
   sharedRange,
-  onRangeChange,
   onDataLoad,
   height,
   showResizeHandle = false,
@@ -155,6 +157,7 @@ export default function WanLatencyChart({
   onMetricTypeChange,
   isBrushAdjusting = false,
   hideXAxisLabels = false,
+  tileBorderRadius = 8,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -421,12 +424,25 @@ export default function WanLatencyChart({
     startIndex: variant === 'drawer' && sharedRange ? sharedRange.startIndex : range.left,
     endIndex: variant === 'drawer' && sharedRange ? sharedRange.endIndex : range.right,
   });
+  const aggregatedDataByTimestamp = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const row of aggregatedData as any[]) {
+      map.set(String(row.x), row);
+    }
+    return map;
+  }, [aggregatedData]);
 
   const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
     if (!active || !label) return null;
 
     const targetIso = String(label ?? payload?.[0]?.payload?.x ?? "");
-    let rowAtLabel = aggregatedData.find((r: any) => String(r.x) === targetIso) as any | undefined;
+    const payloadRow = payload?.[0]?.payload as any | undefined;
+    let rowAtLabel: any | undefined = payloadRow && payloadRow.x != null ? payloadRow : undefined;
+
+    // Fast path: resolve by timestamp map instead of O(n) scan on each hover frame.
+    if ((!rowAtLabel || String(rowAtLabel.x) !== targetIso) && targetIso) {
+      rowAtLabel = aggregatedDataByTimestamp.get(targetIso);
+    }
     
     if (!rowAtLabel) {
       const d = toDate(label);
@@ -1038,7 +1054,14 @@ export default function WanLatencyChart({
     
     
     return (
-      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ height: `${chartHeight + 90}px` }}>
+      <div
+        className="bg-surface-tile chart-gradient-border rounded-lg"
+        style={{
+          height: `${chartHeight + 90}px`,
+          borderRadius: tileBorderRadius,
+          ['--drawer-chart-tile-radius' as any]: `${tileBorderRadius}px`,
+        }}
+      >
         <ChartDrawerContent
           sidebar={
             <ChartDrawerLegend

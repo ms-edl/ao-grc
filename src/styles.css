@@ -515,6 +515,8 @@ body {
   width: 100%;
   max-width: 100%;
   overflow: visible;
+  padding: 24px;
+  padding-inline: var(--drawer-wrapper-pad-x, 24px);
 }
 
 /* Sidebar container */
@@ -534,7 +536,7 @@ body {
   padding: 16px 20px;
   border-bottom: 1px solid rgb(var(--border-border-flat));
   background-color: rgb(var(--surface-tile));
-  border-top-right-radius: 0.5rem; /* 8px - match parent's rounded-lg */
+  border-top-right-radius: var(--drawer-chart-tile-radius, 8px);
 }
 
 /* Metric toggles section below timestamp */
@@ -548,20 +550,16 @@ body {
   gap: 4px;
 }
 
-/* Scrollable content area - contains all sections */
-.sidebar-legend-content {
-  display: flex; /* Make it a flex container */
-  flex-direction: column; /* Stack sections vertically */
-  flex: 1; /* Take remaining space */
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0; /* Allow shrinking */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Scroll root for sidebar data legend */
+.sidebar-legend-scroll-area {
+  flex: 1;
+  min-height: 0;
 }
 
-.sidebar-legend-content::-webkit-scrollbar {
-  display: none;
+/* Scroll content - contains data sections */
+.sidebar-legend-content {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Sidebar section wrapper - default styling for data items */
@@ -570,8 +568,7 @@ body {
   flex-direction: column;
   gap: 0.5rem; /* 8px */
   padding: 12px;
-  flex: 1; /* Fill available space */
-  min-height: 0; /* Allow shrinking if needed */
+  flex: 0 0 auto; /* Keep natural height; let parent scroll instead */
   border-bottom: 1px solid rgb(var(--border-border-flat));
 }
 
@@ -592,7 +589,9 @@ body {
   flex-wrap: wrap;
   gap: 0.25rem; /* 4px */
   padding: 12px;
-  flex-shrink: 0; /* Sections should not shrink, only scroll */
+  flex-shrink: 0; /* Footer should never shrink */
+  border-top: 1px solid rgb(var(--border-border-flat));
+  background-color: rgb(var(--surface-tile));
 }
 
 /* Chart main content area - for default/standalone charts */
@@ -605,6 +604,7 @@ body {
 /* Drawer main content area padding */
 .drawer-content-main {
   padding: 16px;
+  padding-inline: var(--drawer-content-pad-x, 16px);
   border-right: 1px solid rgb(var(--border-border-flat));
   overflow: visible;
 }
@@ -785,5 +785,42 @@ body {
   }
   to {
     opacity: 0;
+  }
+}
+
+/* ── Chart transition overlay (brush drag → loading → animate) ── */
+
+.chart-transition-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--drawer-chart-overlay-radius, 8px);
+  background: rgb(var(--surface-tile) / 0.55);
+  backdrop-filter: blur(1px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+.chart-transition-overlay[data-visible] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chart-transition-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgb(var(--content-tertiary) / 0.18);
+  border-top-color: rgb(var(--content-tertiary) / 0.7);
+  border-radius: 50%;
+  animation: chartSpinnerRotate 0.7s linear infinite;
+}
+
+@keyframes chartSpinnerRotate {
+  to {
+    transform: rotate(360deg);
   }
 }

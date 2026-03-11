@@ -28,8 +28,7 @@ import { calculateYAxisDomainFromDevices, calculateNiceTicks } from "./utils/cal
 import { getPreviewMetrics, renderPreviewLines } from "./utils/previewLines";
 import { BaseChartCore } from "./charts/base/BaseChartCore";
 import { ChartTooltip, TooltipItem } from "./ChartTooltip";
-import { useSyncedChart, findClosestTimestampIndex } from "./SyncedChartContext";
-import { Icon } from "./ui/icons";
+import { useSyncedChart } from "./SyncedChartContext";
 import { useSharedAxisWidth } from "./charts/context/SharedAxisWidthContext";
 import { measureYAxisWidth } from "./charts/utils/measureAxisWidth";
 
@@ -176,6 +175,10 @@ interface MultiDeviceLatencyChartProps {
    * Hide X-axis time labels (used when a global shared time axis is active)
    */
   hideXAxisLabels?: boolean;
+  /**
+   * Border radius for the chart tile container
+   */
+  tileBorderRadius?: number;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -184,7 +187,6 @@ export default function MultiDeviceLatencyChart({
   variant = 'default',
   enableSync = false,
   sharedRange,
-  onRangeChange,
   onDataLoad,
   height,
   showResizeHandle = false,
@@ -196,6 +198,7 @@ export default function MultiDeviceLatencyChart({
   onMetricTypeChange,
   isBrushAdjusting = false,
   hideXAxisLabels = false,
+  tileBorderRadius = 8,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -923,13 +926,26 @@ export default function MultiDeviceLatencyChart({
   const renderXAxisTick = useCallback((props: any) => <CustomTick {...props} />, [dayTicks]);
 
   // Removed scroll-to-zoom behavior per request
+  const chartDataByTimestamp = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const row of chartData as any[]) {
+      map.set(String(row.x), row);
+    }
+    return map;
+  }, [chartData]);
 
   const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
     // Keep tooltip visible on outage areas too: allow empty payload
     if (!active || !label) return null;
 
     const targetIso = String(label ?? payload?.[0]?.payload?.x ?? "");
-    let rowAtLabel = chartData.find((r: any) => String(r.x) === targetIso) as any | undefined;
+    const payloadRow = payload?.[0]?.payload as any | undefined;
+    let rowAtLabel: any | undefined = payloadRow && payloadRow.x != null ? payloadRow : undefined;
+
+    // Fast path: resolve by timestamp map instead of O(n) scan on each hover frame.
+    if ((!rowAtLabel || String(rowAtLabel.x) !== targetIso) && targetIso) {
+      rowAtLabel = chartDataByTimestamp.get(targetIso);
+    }
     
     // If we don't have a row at this exact timestamp, try to find the closest one
     if (!rowAtLabel) {
@@ -1118,9 +1134,6 @@ export default function MultiDeviceLatencyChart({
     );
   }
   
-  // Debug log
-  console.log('MultiDeviceLatencyChart rendering, variant:', variant, 'deviceIds:', visibleDeviceIds.length);
-
   // Render drawer variant with new layout
   if (variant === 'drawer') {
     
@@ -1179,7 +1192,14 @@ export default function MultiDeviceLatencyChart({
       }));
     
     return (
-      <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ height: `${chartHeight + 90}px` }}>
+      <div
+        className="bg-surface-tile chart-gradient-border rounded-lg"
+        style={{
+          height: `${chartHeight + 90}px`,
+          borderRadius: tileBorderRadius,
+          ['--drawer-chart-tile-radius' as any]: `${tileBorderRadius}px`,
+        }}
+      >
         <ChartDrawerContent
           sidebar={
             <ChartDrawerLegend
@@ -1490,7 +1510,15 @@ export default function MultiDeviceLatencyChart({
 
   return (
     <>
-    <div className="bg-surface-tile chart-gradient-border rounded-lg" style={{ overflow: "visible", width: "864px" }}>
+    <div
+      className="bg-surface-tile chart-gradient-border rounded-lg"
+      style={{
+        overflow: "visible",
+        width: "864px",
+        borderRadius: tileBorderRadius,
+        ['--drawer-chart-tile-radius' as any]: `${tileBorderRadius}px`,
+      }}
+    >
       <div className="p-5 flex flex-col items-start gap-3">
         {/* Title row with actions on the right */}
         <div className="relative w-full">

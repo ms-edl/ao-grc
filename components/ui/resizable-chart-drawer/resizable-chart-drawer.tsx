@@ -230,6 +230,9 @@ export function ResizableChartDrawer({
                 )}
                 style={{
                   ['--drawer-sidebar-width' as any]: '256px',
+                  ['--drawer-content-pad-x' as any]: '16px',
+                  ['--drawer-wrapper-pad-x' as any]: '24px',
+                  ['--drawer-plot-inset-x' as any]: 'calc(var(--drawer-content-pad-x) + var(--drawer-wrapper-pad-x))',
                   border: isResizeHandleHovered 
                     ? '1px solid rgb(var(--content-tertiary))'
                     : '1px solid rgb(var(--border-border-flat))',
@@ -338,9 +341,9 @@ export function ResizableChartDrawer({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-hidden">
-                  <div className="h-full overflow-y-auto overflow-x-visible" style={{ paddingBottom: bottomContent ? '0' : '0' }}>
-                    <div className="drawer-wrapper p-6 pb-[150px]" style={{ overflow: 'visible' }}>
+                <div className="drawer-content-shell">
+                  <div className="drawer-content-scroll">
+                    <div className="drawer-wrapper" style={{ overflow: 'visible' }}>
                       {/* Chart Tags Section */}
                       {((chartTags && chartTags.length > 0) || onAddChart) && (
                         <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -416,18 +419,15 @@ export function ResizableChartDrawer({
                         </span>
                       </button>
                     </div>
+                    
+                    {/* Bottom Content */}
+                    {bottomContent && (
+                      <div className={`drawer-content-bottom${isSidebarOpen ? ' is-sidebar-open' : ''}`}>
+                        {bottomContent}
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Bottom Content (Fixed) */}
-                {bottomContent && (
-                  <div className="drawer-footer">
-                    <div className="drawer-footer-gradient" />
-                    <div className={`drawer-footer-content${isSidebarOpen ? ' is-sidebar-open' : ''}`}>
-                      {bottomContent}
-                    </div>
-                  </div>
-                )}
 
                 {/* Widget Selector Sidebar */}
                 {availableWidgets.length > 0 && (
