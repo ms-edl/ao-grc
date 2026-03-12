@@ -235,7 +235,7 @@ export const SimplifiedBrush: React.FC<SimplifiedBrushProps> = ({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
     >
-      <div ref={trackRef} className="simplified-brush-track relative w-full" style={{ height: 64, userSelect: 'none' }}>
+      <div ref={trackRef} className="simplified-brush-track" style={{ height: 64, userSelect: 'none' }}>
         {/* Track with simplified tick visualization */}
         <div 
           className="simplified-brush-track-viewport absolute inset-x-4 top-2 h-8 transition-colors duration-200 rounded-lg overflow-hidden"
