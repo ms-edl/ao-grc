@@ -18,6 +18,7 @@ export interface YAxisConfig {
   orientation?: 'left' | 'right';
   domain: [number, number];
   ticks?: number[];
+  tickFormatter?: (value: any) => string;
   label?: string;
   width?: number;
 }

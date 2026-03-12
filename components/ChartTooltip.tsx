@@ -36,6 +36,8 @@ export interface ChartTooltipProps {
   };
   // For client chart - show band column
   showBand?: boolean;
+  // Number of decimals for numeric value rendering (default: 1)
+  valuePrecision?: number;
 }
 
 export const ChartTooltip: React.FC<ChartTooltipProps> = ({
@@ -50,6 +52,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
   focusItems,
   focusHeader,
   showBand = false,
+  valuePrecision = 1,
 }) => {
   if (!active || !label) return null;
 
@@ -166,7 +169,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                       minWidth: 40
                     }}
                   >
-                    {hasValue ? `${item.value!.toFixed(1)}${item.unit ? ` ${item.unit}` : ''}` : 'N/A'}
+                    {hasValue ? `${item.value!.toFixed(valuePrecision)}${item.unit ? ` ${item.unit}` : ''}` : 'N/A'}
                   </span>
 
                   {/* Band - right aligned (client chart only) */}
@@ -229,7 +232,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
                       minWidth: 40
                     }}
                   >
-                    {hasValue ? `${item.value!.toFixed(1)}${item.unit ? ` ${item.unit}` : ''}` : 'N/A'}
+                    {hasValue ? `${item.value!.toFixed(valuePrecision)}${item.unit ? ` ${item.unit}` : ''}` : 'N/A'}
                   </span>
 
                   {/* Band - right aligned (client chart only) */}

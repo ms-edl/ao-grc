@@ -259,7 +259,7 @@ export function ResizableChartDrawer({
                           <img 
                             src={deviceAvatar} 
                             alt={deviceName}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                             style={{ borderRadius: '4px' }}
                           />
                         ) : deviceAvatar ? (

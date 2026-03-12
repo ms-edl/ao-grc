@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import {
   LineChart,
   XAxis,
@@ -197,6 +197,7 @@ export function BaseChartCore<TData = any>({
                   fill: 'rgb(var(--content-tertiary))',
                   style: { userSelect: 'none' } as any,
                 }}
+                tickFormatter={config.tickFormatter}
                 width={effectiveWidth}
               />
             );
@@ -220,7 +221,7 @@ export function BaseChartCore<TData = any>({
           
           {/* Tooltip */}
           <Tooltip
-            content={renderTooltip()}
+            content={renderTooltip() as any}
             cursor={{ stroke: 'rgb(var(--border-border-flat))' }}
             offset={12}
             allowEscapeViewBox={{ x: false, y: true }}

@@ -172,6 +172,26 @@ interface MultiDeviceLatencyChartProps {
    * Whether the brush is currently being adjusted
    */
   isBrushAdjusting?: boolean;
+  /**
+   * Move chart up in drawer order
+   */
+  onMoveUp?: () => void;
+  /**
+   * Move chart down in drawer order
+   */
+  onMoveDown?: () => void;
+  /**
+   * Delete chart from drawer
+   */
+  onDelete?: () => void;
+  /**
+   * Disable move up action
+   */
+  disableMoveUp?: boolean;
+  /**
+   * Disable move down action
+   */
+  disableMoveDown?: boolean;
 }
 
 export default function MultiDeviceLatencyChart({ 
@@ -191,6 +211,11 @@ export default function MultiDeviceLatencyChart({
   metricType,
   onMetricTypeChange,
   isBrushAdjusting = false,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+  disableMoveUp = false,
+  disableMoveDown = false,
 }: MultiDeviceLatencyChartProps = {}) {
   // Chart height (from prop or default)
   const chartHeight = height ?? 256;
@@ -1263,6 +1288,11 @@ export default function MultiDeviceLatencyChart({
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            onDelete={onDelete}
+            disableMoveUp={disableMoveUp}
+            disableMoveDown={disableMoveDown}
             actions={
               <>
                 <AoBtnFilter

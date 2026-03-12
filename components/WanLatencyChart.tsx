@@ -131,6 +131,26 @@ interface WanLatencyChartProps {
    * Whether the brush is currently being adjusted
    */
   isBrushAdjusting?: boolean;
+  /**
+   * Move chart up in drawer order
+   */
+  onMoveUp?: () => void;
+  /**
+   * Move chart down in drawer order
+   */
+  onMoveDown?: () => void;
+  /**
+   * Delete chart from drawer
+   */
+  onDelete?: () => void;
+  /**
+   * Disable move up action
+   */
+  disableMoveUp?: boolean;
+  /**
+   * Disable move down action
+   */
+  disableMoveDown?: boolean;
 }
 
 export default function WanLatencyChart({ 
@@ -150,6 +170,11 @@ export default function WanLatencyChart({
   metricType,
   onMetricTypeChange,
   isBrushAdjusting = false,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+  disableMoveUp = false,
+  disableMoveDown = false,
 }: WanLatencyChartProps = {}) {
   // Core data state
   const [data, setData] = useState<Row[]>([]);
@@ -1103,6 +1128,11 @@ export default function WanLatencyChart({
             showDragHandle={showDragHandle}
             dragHandleProps={dragHandleProps}
             isDragging={isDragging}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            onDelete={onDelete}
+            disableMoveUp={disableMoveUp}
+            disableMoveDown={disableMoveDown}
           />
           
           {/* Chart */}
