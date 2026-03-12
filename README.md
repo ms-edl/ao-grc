@@ -1,5 +1,27 @@
 # Combined Latency Chart Visualization
 
+## Recent Changes: Shared Y-Axis Width for Drawer Chart Alignment
+
+To keep all chart plot areas aligned inside a single drawer (so the X-axis starts and ends at the same horizontal positions), we implemented a shared Y-axis width system.
+
+### Why this matters
+- Different charts can have different Y-axis label widths (for example, `7` vs `100` or extra right-side axis labels).
+- Without coordination, each chart reserves a different left/right axis space, so plot areas become offset.
+- Offset plot areas make a shared drawer feel broken because the chart X-axes are visually misaligned.
+
+### What was implemented
+- `SharedAxisWidthProvider` wraps the drawer chart stack in `CombinedLatencyPage`.
+- Each drawer chart measures required axis widths using `measureYAxisWidth(...)` and reports them via `useSharedAxisWidth(chartId, leftWidth, rightWidth)`.
+- `BaseChartCore` accepts `sharedLeftAxisWidth` and `sharedRightAxisWidth` and uses them to enforce consistent Y-axis sizing across all drawer charts.
+- If a chart has no right Y-axis but `sharedRightAxisWidth > 0`, `BaseChartCore` injects a hidden right spacer axis so right edges still align.
+
+### Frontend implementation checklist (for any chart in the shared drawer)
+1. Add the chart inside the drawer subtree already wrapped by `SharedAxisWidthProvider`.
+2. Compute left (and right, if present) tick label widths with `measureYAxisWidth`.
+3. Call `useSharedAxisWidth` with a stable `chartId` and measured widths (`rightWidth = 0` if no right axis).
+4. Pass returned `sharedLeftAxisWidth` and `sharedRightAxisWidth` into `BaseChartCore`.
+5. Keep axis tick formatting stable, because width measurement is based on rendered tick labels.
+
 🔗 **[Live Preview](https://ao-graphical-representation-center.vercel.app/)**
 
 This repository contains a prototype implementation of combined latency visualization charts (Client and WAN) using Recharts. This is a **proof of concept** and requires additional optimization and hardening before production use.
